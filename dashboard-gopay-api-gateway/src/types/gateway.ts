@@ -12,6 +12,10 @@ export interface QrisItem {
   createdAt: Date;
   status: QrisStatus;
   transaction?: NormalizedTransaction | null;
+  // [PATCH manual-check] Waktu cek status terakhir (untuk cooldown server per QRIS)
+  lastStatusCheckAt?: number;
+  // [PATCH manual-check] Penanda final check sedang berjalan
+  finalizing?: boolean;
 }
 
 export interface ClaimItem {

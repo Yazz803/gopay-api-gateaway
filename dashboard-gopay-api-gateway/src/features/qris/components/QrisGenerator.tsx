@@ -67,11 +67,12 @@ export function QrisGenerator({ onPaymentSuccess }: { onPaymentSuccess?: () => v
         });
       }, 1000);
 
-      // Start polling for payment verification
-      const checkId =
-        res.trx_id ||
-        (typeof res.data === 'object' ? res.data.trx_id : '') ||
-        generatedTrxId;
+      // Start polling for payment verification.
+      // PENTING: status harus dicek memakai qris_id (kunci qrisStore di server),
+      // BUKAN trx_id. Versi sebelumnya memakai trx_id sehingga polling selalu
+      // menerima NOT_FOUND dan status pembayaran di dashboard tidak pernah
+      // berubah menjadi PAID.
+      const checkId = typeof res.data === 'object' ? res.data.qris_id || '' : '';
       pollIntervalRef.current = setInterval(async () => {
         try {
           const statusRes = await GatewayService.getQrStatus(checkId);
@@ -88,7 +89,9 @@ export function QrisGenerator({ onPaymentSuccess }: { onPaymentSuccess?: () => v
         } catch {
           // Poll attempt failed temporarily
         }
-      }, 2500);
+        // 10 detik: diselaraskan dengan cooldown server (STATUS_COOLDOWN_MS).
+        // Polling lebih cepat dari itu hanya akan menerima respons cached.
+      }, 10000);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Gagal membuat QRIS dinamis';
       setErrorMessage(msg);

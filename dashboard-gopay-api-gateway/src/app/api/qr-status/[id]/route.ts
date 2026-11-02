@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
 import { handleCorsOptions, jsonResponse } from '@/lib/auth';
 import { gatewayState, logActivity } from '@/lib/gateway-state';
-import { verifyPayment } from '@/lib/gopay-api';
+import { verifyPayment, finalizeQris, STATUS_COOLDOWN_MS } from '@/lib/gopay-api';
 
 export const dynamic = 'force-dynamic';
 
@@ -29,8 +29,20 @@ export async function GET(
     });
   }
 
+  const userAgent = req.headers.get('user-agent');
+
   if (Date.now() > qris.expiresAt.getTime()) {
-    gatewayState.qrisStore.delete(qrisId);
+    // [PATCH manual-check] Satu cek terakhir sebelum dinyatakan kedaluwarsa,
+    // untuk menangkap pembayaran yang masuk di detik-detik terakhir masa berlaku.
+    const finalMatch = await finalizeQris(qrisId, userAgent);
+    if (finalMatch) {
+      return jsonResponse({
+        success: true,
+        paid: true,
+        status: 'PAID',
+        transaction: finalMatch,
+      });
+    }
     return jsonResponse({
       success: false,
       paid: false,
@@ -39,8 +51,24 @@ export async function GET(
     });
   }
 
+  // [PATCH manual-check] Cooldown server per QRIS: cek berulang dalam jeda
+  // STATUS_COOLDOWN_MS dijawab dari status terakhir TANPA memanggil API Gojek lagi.
+  const nowMs = Date.now();
+  if (qris.lastStatusCheckAt && nowMs - qris.lastStatusCheckAt < STATUS_COOLDOWN_MS) {
+    const retryAfter = Math.ceil((STATUS_COOLDOWN_MS - (nowMs - qris.lastStatusCheckAt)) / 1000);
+    return jsonResponse({
+      success: true,
+      paid: false,
+      status: 'PENDING',
+      cached: true,
+      retry_after_seconds: retryAfter,
+      message: `Terlalu cepat, coba lagi dalam ${retryAfter} detik`,
+    });
+  }
+  qris.lastStatusCheckAt = nowMs;
+  gatewayState.qrisStore.set(qrisId, qris);
+
   try {
-    const userAgent = req.headers.get('user-agent');
     const matched = await verifyPayment(
       qris.amount,
       qris.createdAt,
@@ -69,6 +97,7 @@ export async function GET(
       success: true,
       paid: false,
       status: 'PENDING',
+      retry_after_seconds: Math.ceil(STATUS_COOLDOWN_MS / 1000),
       message: 'Belum ada pembayaran masuk',
     });
   } catch (err: unknown) {

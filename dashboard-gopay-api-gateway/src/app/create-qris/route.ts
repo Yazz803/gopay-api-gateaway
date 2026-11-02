@@ -3,6 +3,7 @@ import { validateApiKey, handleCorsOptions, jsonResponse } from '@/lib/auth';
 import { generateDynamicQRIS } from '@/lib/emvco';
 import { gatewayState, logActivity } from '@/lib/gateway-state';
 import { getAuthenticatedUser } from '@/lib/auth-session';
+import { finalizeQris } from '@/lib/gopay-api';
 import { recordQrisOrderToDb, recordActivityLogToDb } from '@/lib/merchant-session-db';
 import { getDb, schema, isDatabaseConfigured } from '@/lib/db';
 import { eq } from 'drizzle-orm';
@@ -16,13 +17,18 @@ async function handleCreateQris(req: NextRequest) {
   if (!auth.valid) return auth.response!;
 
   let amount: string | number | null = null;
+  let requestedTrxId: string | null = null;
   if (req.method === 'POST') {
     try {
       const body = (await req.json()) as Record<string, unknown>;
       amount = (body?.amount as string | number) ?? null;
+      requestedTrxId = ((body?.trx_id as string) || '').trim() || null;
     } catch {
       // Body may not be valid json or empty
     }
+  }
+  if (!requestedTrxId) {
+    requestedTrxId = req.nextUrl.searchParams.get('trx_id');
   }
 
   if (!amount) {
@@ -84,7 +90,19 @@ async function handleCreateQris(req: NextRequest) {
   }
 
   const qrisId = Math.random().toString(36).substring(2, 10);
-  const trxId = 'TRX-' + Math.random().toString(36).substring(2, 10).toUpperCase();
+  // [PATCH] Hormati trx_id dari pemanggil (mis. nomor nota dari dashboard) selama aman
+  // dan belum dipakai QRIS pending lain. Sebelumnya field ini diam-diam diabaikan server
+  // dan selalu diganti trx acak, sehingga catatan/nota pengguna tidak pernah tercatat.
+  let trxId = 'TRX-' + Math.random().toString(36).substring(2, 10).toUpperCase();
+  if (requestedTrxId) {
+    const candidate = requestedTrxId.replace(/[^\w-]/g, '').substring(0, 32);
+    const alreadyUsed = [...gatewayState.qrisStore.values()].some(
+      (item) => item.trxId === candidate && item.status === 'PENDING'
+    );
+    if (candidate && !alreadyUsed) {
+      trxId = candidate;
+    }
+  }
   const expiresAt = new Date(Date.now() + QRIS_EXPIRY_MS);
   const createdAt = new Date();
 
@@ -96,6 +114,19 @@ async function handleCreateQris(req: NextRequest) {
     createdAt,
     status: 'PENDING',
   });
+
+  // [PATCH manual-check] Satu kali cek terakhir terjadwal tepat setelah QRIS kedaluwarsa,
+  // supaya pembayaran di detik terakhir tetap tercatat walau pembeli tidak pernah
+  // menekan tombol cek status.
+  const finalTimer = setTimeout(() => {
+    finalizeQris(qrisId).catch((err: unknown) =>
+      logActivity(
+        'ERROR',
+        `Final check QRIS ${qrisId} gagal: ${err instanceof Error ? err.message : 'Unknown error'}`
+      )
+    );
+  }, QRIS_EXPIRY_MS + 2000);
+  if (typeof finalTimer.unref === 'function') finalTimer.unref();
 
   const host = req.headers.get('x-forwarded-host') || req.headers.get('host') || 'localhost:3000';
   const protocol = req.headers.get('x-forwarded-proto') || (req.url.startsWith('https') ? 'https' : 'http');

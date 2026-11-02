@@ -5,6 +5,103 @@ import { getValidHeaders, refreshSession, loadSession } from './session-service'
 
 export const GOJEK_TRANSACTIONS_URL = 'https://api.gojekapi.com/merchant-analytics/v2/merchants/transactions';
 
+// [PATCH manual-check] Tidak ada auto-polling: status hanya dicek saat pembeli menekan tombol.
+// Cooldown per QRIS ditegakkan di server (lihat route qr-status) dan daftar transaksi
+// terakhir dipakai bersama semua QRIS, agar banyak cek yang datang bersamaan
+// tidak berlipat menjadi banyak request ke API Gojek.
+function parsePositiveIntEnv(name: string, fallback: number): number {
+  const parsed = parseInt(process.env[name] || '', 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+export const STATUS_COOLDOWN_MS = parsePositiveIntEnv('STATUS_COOLDOWN_MS', 10000);
+export const TX_CACHE_MS = parsePositiveIntEnv('TX_CACHE_MS', 12000);
+
+interface TxCache {
+  fetchedAt: number;
+  merchantId: string;
+  transactions: Array<Record<string, unknown>> | null;
+  inflight: Promise<Array<Record<string, unknown>>> | null;
+  inflightMerchantId: string | null;
+}
+
+// Mengikuti pola gateway-state: simpan di globalThis agar konsisten antar route invocation.
+const globalForTxCache = globalThis as unknown as { __GOPAY_TX_CACHE__?: TxCache };
+if (!globalForTxCache.__GOPAY_TX_CACHE__) {
+  globalForTxCache.__GOPAY_TX_CACHE__ = {
+    fetchedAt: 0,
+    merchantId: '',
+    transactions: null,
+    inflight: null,
+    inflightMerchantId: null,
+  };
+}
+const txCache = globalForTxCache.__GOPAY_TX_CACHE__;
+
+async function fetchTransactionsFromApi(
+  activeHeaders: Record<string, string>,
+  merchantId: string
+): Promise<Array<Record<string, unknown>>> {
+  const now = new Date();
+  // Jendela 24 jam terakhir (sama seperti default verifyPayment semula): API tetap hanya
+  // mengembalikan 20 transaksi terbaru, dan penyaringan per QRIS dilakukan lokal,
+  // jadi jendela lebar ini aman sekaligus menjaga kompatibilitas /check-payment.
+  const startTimeISO = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString();
+  const response = await axios.get(GOJEK_TRANSACTIONS_URL, {
+    headers: activeHeaders,
+    params: {
+      from: 0,
+      size: 20,
+      statuses: 'SETTLEMENT,CAPTURE,REFUND,PARTIAL_REFUND',
+      payment_types: 'QRIS,GOPAY,OFFLINE_CREDIT_CARD,OFFLINE_DEBIT_CARD,CREDIT_CARD',
+      start_time: startTimeISO,
+      end_time: now.toISOString(),
+      merchant_ids: merchantId,
+    },
+    timeout: 10000,
+  });
+  return (response.data?.transactions ||
+    response.data?.data?.transactions ||
+    response.data?.data ||
+    []) as Array<Record<string, unknown>>;
+}
+
+async function getRecentTransactions(
+  activeHeaders: Record<string, string>,
+  merchantId: string,
+  forceRefresh = false
+): Promise<Array<Record<string, unknown>>> {
+  const nowMs = Date.now();
+  if (
+    !forceRefresh &&
+    txCache.transactions &&
+    txCache.merchantId === merchantId &&
+    nowMs - txCache.fetchedAt < TX_CACHE_MS
+  ) {
+    return txCache.transactions;
+  }
+  if (!forceRefresh && txCache.inflight && txCache.inflightMerchantId === merchantId) {
+    return txCache.inflight;
+  }
+  txCache.inflightMerchantId = merchantId;
+  txCache.inflight = (async () => {
+    try {
+      const transactions = await fetchTransactionsFromApi(activeHeaders, merchantId);
+      txCache.fetchedAt = Date.now();
+      txCache.merchantId = merchantId;
+      txCache.transactions = transactions;
+      txCache.inflight = null;
+      txCache.inflightMerchantId = null;
+      return transactions;
+    } catch (err) {
+      txCache.inflight = null;
+      txCache.inflightMerchantId = null;
+      throw err;
+    }
+  })();
+  return txCache.inflight;
+}
+
 export async function checkTokenStatus(userAgent?: string | null) {
   const activeHeaders = await getValidHeaders(userAgent);
   if (!activeHeaders) {
@@ -157,32 +254,11 @@ export async function verifyPayment(
     throw new Error('Sesi GoPay belum ada. Silakan hubungkan akun GoPay Merchant melalui web app.');
   }
 
-  const doRequest = async (activeHeaders: Record<string, string>) => {
-    const merchantId = merchantIdOverride || process.env.GOPAY_MERCHANT_ID || '';
-    const now = new Date();
-    const startTimeISO = startTime
-      ? new Date(startTime).toISOString()
-      : new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString();
-    const endTimeISO = now.toISOString();
+  const merchantId = merchantIdOverride || process.env.GOPAY_MERCHANT_ID || '';
 
-    return await axios.get(GOJEK_TRANSACTIONS_URL, {
-      headers: activeHeaders,
-      params: {
-        from: 0,
-        size: 20,
-        statuses: 'SETTLEMENT,CAPTURE,REFUND,PARTIAL_REFUND',
-        payment_types: 'QRIS,GOPAY,OFFLINE_CREDIT_CARD,OFFLINE_DEBIT_CARD,CREDIT_CARD',
-        start_time: startTimeISO,
-        end_time: endTimeISO,
-        merchant_ids: merchantId,
-      },
-      timeout: 10000,
-    });
-  };
-
-  let response;
+  let rawTransactions: Array<Record<string, unknown>>;
   try {
-    response = await doRequest(headers);
+    rawTransactions = await getRecentTransactions(headers, merchantId, false);
   } catch (firstErr: unknown) {
     const errorResponse = (firstErr as { response?: { status?: number } })?.response;
     if (errorResponse && errorResponse.status === 401) {
@@ -191,7 +267,7 @@ export async function verifyPayment(
       if (refreshed) {
         const newHeaders = await getValidHeaders(userAgent);
         if (!newHeaders) throw firstErr;
-        response = await doRequest(newHeaders);
+        rawTransactions = await getRecentTransactions(newHeaders, merchantId, true);
       } else {
         throw firstErr;
       }
@@ -199,11 +275,6 @@ export async function verifyPayment(
       throw firstErr;
     }
   }
-
-  const rawTransactions = (response.data?.transactions ||
-    response.data?.data?.transactions ||
-    response.data?.data ||
-    []) as Array<Record<string, unknown>>;
   const targetAmount = parseInt(String(amount), 10);
   const filterStartTimeMs = startTime ? new Date(startTime).getTime() : 0;
 
@@ -252,4 +323,44 @@ export async function verifyPayment(
   }
 
   return null;
+}
+
+// [PATCH manual-check] Cek terakhir untuk satu QRIS: dipakai route qr-status saat QRIS
+// baru saja kedaluwarsa dan oleh timer terjadwal di route create-qris. Melewati cooldown
+// per QRIS, tapi tetap memakai cache daftar transaksi bersama.
+// Bila verifikasi gagal (mis. API Gojek sedang gangguan), entri QRIS TIDAK dihapus
+// agar cek berikutnya masih bisa mencoba lagi.
+export async function finalizeQris(qrisId: string, userAgent?: string | null) {
+  const qris = gatewayState.qrisStore.get(qrisId);
+  if (!qris) return null;
+  if (qris.status === 'PAID') return qris.transaction ?? null;
+  if (qris.finalizing) return null;
+  qris.finalizing = true;
+  try {
+    const matched = await verifyPayment(
+      qris.amount,
+      qris.createdAt,
+      null,
+      userAgent,
+      qris.trxId || qrisId
+    );
+    if (matched) {
+      qris.status = 'PAID';
+      qris.transaction = matched;
+      gatewayState.qrisStore.set(qrisId, qris);
+      logActivity(
+        'SUCCESS',
+        `Final check: pembayaran QRIS ID ${qrisId} terverifikasi lunas untuk nominal Rp ${qris.amount}`
+      );
+      return matched;
+    }
+    gatewayState.qrisStore.delete(qrisId);
+    logActivity('INFO', `Final check: QRIS ID ${qrisId} kedaluwarsa tanpa pembayaran`);
+    return null;
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Unknown error';
+    logActivity('ERROR', `Final check QRIS ID ${qrisId} gagal: ${message}`);
+    qris.finalizing = false;
+    return null;
+  }
 }

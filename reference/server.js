@@ -12,6 +12,12 @@ const CLAIMED_CLEANUP_INTERVAL_MS = 24 * 60 * 60 * 1000; // 24 jam
 const QRIS_EXPIRY_MS = 5 * 60 * 1000; // 5 menit
 const GOJEK_TRANSACTIONS_URL = 'https://api.gojekapi.com/merchant-analytics/v2/merchants/transactions';
 
+// [PATCH manual-check] Tidak ada auto-polling: status hanya dicek saat pembeli menekan tombol.
+// Cooldown per QRIS ditegakkan di server agar endpoint publik tidak bisa dipakai meng-hammer API Gojek.
+const STATUS_COOLDOWN_MS = parseInt(process.env.STATUS_COOLDOWN_MS || '10000', 10); // jeda minimum antar cek status per QRIS
+const TX_CACHE_MS = parseInt(process.env.TX_CACHE_MS || '12000', 10); // daftar transaksi terakhir dipakai bersama semua QRIS selama jeda ini
+let txCache = { fetchedAt: 0, merchantId: null, transactions: null, inflight: null };
+
 
 // claimedTransactions: Map<txId, { qrisId: string|null, claimedAt: number }>
 // Menyimpan mapping txId -> qrisId agar satu transaksi tidak bisa diklaim oleh dua QRIS berbeda
@@ -238,6 +244,13 @@ app.all('/create-qris', apiKeyAuth, (req, res) => {
         status: 'PENDING'
     });
 
+    // [PATCH manual-check] Satu kali cek terakhir terjadwal tepat setelah QRIS kedaluwarsa,
+    // supaya pembayaran di detik terakhir tetap tercatat walau pembeli tidak pernah menekan tombol cek.
+    const finalTimer = setTimeout(() => {
+        finalizeQris(qrisId).catch(err => logActivity('ERROR', 'Final check QRIS ' + qrisId + ' gagal: ' + err.message));
+    }, QRIS_EXPIRY_MS + 2000);
+    if (finalTimer.unref) finalTimer.unref();
+
     const host = req.get('host');
     const protocol = req.protocol;
     const publicUrl = `${protocol}://${host}/qr/${qrisId}`;
@@ -258,7 +271,7 @@ app.all('/create-qris', apiKeyAuth, (req, res) => {
     });
 });
 
-// Render Halaman HTML QRIS Interaktif (Tombol Cek Manual + Auto Polling Toggle)
+// Render Halaman HTML QRIS Interaktif (Cek Status Manual - tanpa auto polling)
 app.get('/qr/:id', (req, res) => {
     const qris = qrisStore.get(req.params.id);
     if (!qris) {
@@ -341,10 +354,7 @@ app.get('/qr/:id', (req, res) => {
             <span id="btn-label">🔄 Cek Status Pembayaran</span>
         </button>
 
-        <div class="toggle-box">
-            <input type="checkbox" id="chk-auto" onchange="handleAutoPollChange(this)">
-            <label for="chk-auto">Cek otomatis setiap 8 detik (Opsional)</label>
-        </div>
+        <p style="font-size:13px;color:#94a3b8;margin-top:14px;">Sudah selesai membayar? Tekan tombol <strong>Cek Status Pembayaran</strong> di atas untuk memverifikasi. Status tidak dicek otomatis demi keamanan akun merchant.</p>
 
         <div class="success-box" id="success-details">
             <strong>✅ Pembayaran Berhasil!</strong>
@@ -360,7 +370,8 @@ app.get('/qr/:id', (req, res) => {
         let isChecking = false;
         let isPaid = false;
         let isExpired = false;
-        let pollTimer = null;
+        let cooldownUntil = 0;
+        let cooldownTimer = null;
 
         function updateCountdown() {
             if (isPaid) return;
@@ -374,9 +385,8 @@ app.get('/qr/:id', (req, res) => {
                 document.getElementById('status-icon').innerText = "🔴";
                 document.getElementById('status-text').innerText = "QRIS Kedaluwarsa";
                 document.getElementById('btn-check').disabled = true;
-                document.getElementById('chk-auto').disabled = true;
                 clearInterval(countdownInterval);
-                stopAutoPoll();
+                clearInterval(cooldownTimer);
                 return;
             }
 
@@ -389,8 +399,31 @@ app.get('/qr/:id', (req, res) => {
         const countdownInterval = setInterval(updateCountdown, 1000);
         updateCountdown();
 
+        function startCooldown(seconds) {
+            const btn = document.getElementById('btn-check');
+            const label = document.getElementById('btn-label');
+            cooldownUntil = Date.now() + seconds * 1000;
+            btn.disabled = true;
+            clearInterval(cooldownTimer);
+            const tick = () => {
+                const sisa = Math.ceil((cooldownUntil - Date.now()) / 1000);
+                if (sisa <= 0) {
+                    clearInterval(cooldownTimer);
+                    if (!isPaid && !isExpired) {
+                        btn.disabled = false;
+                        label.innerText = '🔄 Cek Status Pembayaran';
+                    }
+                    return;
+                }
+                label.innerText = '⏳ Cek lagi dalam ' + sisa + ' detik';
+            };
+            tick();
+            cooldownTimer = setInterval(tick, 500);
+        }
+
         async function checkStatusManual() {
             if (isChecking || isPaid || isExpired) return;
+            if (Date.now() < cooldownUntil) return;
             isChecking = true;
 
             const btn = document.getElementById('btn-check');
@@ -407,32 +440,37 @@ app.get('/qr/:id', (req, res) => {
 
                 if (data.success && data.paid) {
                     onPaymentSuccess(data.transaction);
+                    return;
                 } else if (data.status === 'EXPIRED') {
                     isExpired = true;
                     updateCountdown();
+                    return;
                 } else {
-                    document.getElementById('status-text').innerText = "Belum Dibayar (Dicoba lagi...)";
-                    setTimeout(() => {
-                        if (!isPaid && !isExpired) {
-                            document.getElementById('status-text').innerText = "Menunggu Pembayaran";
-                        }
-                    }, 2000);
+                    document.getElementById('status-text').innerText = "Belum Dibayar - silakan cek lagi sebentar lagi";
+                    const jeda = (data && data.retry_after_seconds) ? data.retry_after_seconds : 10;
+                    startCooldown(jeda);
                 }
             } catch (err) {
                 console.error("Gagal periksa status:", err);
+                startCooldown(10);
             } finally {
                 isChecking = false;
-                if (!isPaid && !isExpired) {
-                    btn.disabled = false;
-                }
                 spinner.style.display = 'none';
-                label.innerText = '🔄 Cek Status Pembayaran';
             }
         }
 
+        // Satu kali cek otomatis saat pembeli kembali ke halaman ini
+        // (mis. setelah selesai membayar di aplikasi e-wallet/bank). Bukan polling:
+        // hanya terpicu oleh peristiwa halaman kembali tampil, dan tetap tunduk pada cooldown server.
+        document.addEventListener('visibilitychange', () => {
+            if (!document.hidden) {
+                checkStatusManual();
+            }
+        });
+
         function onPaymentSuccess(tx) {
             isPaid = true;
-            stopAutoPoll();
+            clearInterval(cooldownTimer);
             clearInterval(countdownInterval);
 
             document.getElementById('status-badge').className = "status-badge status-paid";
@@ -451,34 +489,6 @@ app.get('/qr/:id', (req, res) => {
             }
         }
 
-        function startAutoPoll() {
-            stopAutoPoll();
-            pollTimer = setInterval(() => {
-                if (!isChecking && !isPaid && !isExpired) {
-                    checkStatusManual();
-                }
-            }, 8000);
-        }
-
-        function stopAutoPoll() {
-            if (pollTimer) {
-                clearInterval(pollTimer);
-                pollTimer = null;
-            }
-        }
-
-        function handleAutoPollChange(chk) {
-            if (chk.checked) {
-                startAutoPoll();
-            } else {
-                stopAutoPoll();
-            }
-        }
-
-        // Start auto poll on load if checked
-        if (document.getElementById('chk-auto').checked) {
-            startAutoPoll();
-        }
     </script>
 </body>
 </html>`;
@@ -568,6 +578,49 @@ app.get('/transactions/all', apiKeyAuth, async (req, res) => {
     return app._router.handle({ ...req, url: '/transactions', method: 'GET' }, res);
 });
 
+// [PATCH manual-check] Ambil daftar transaksi terbaru dengan cache bersama.
+// Satu request ke API Gojek dipakai untuk menjawab semua QRIS pending selama TX_CACHE_MS,
+// sehingga banyak pembeli yang menekan tombol cek bersamaan tidak berlipat menjadi banyak request.
+async function fetchTransactionsFromApi(activeHeaders, merchantId) {
+    const now = new Date();
+    const startTimeISO = new Date(now.getTime() - 15 * 60 * 1000).toISOString();
+    const response = await axios.get(GOJEK_TRANSACTIONS_URL, {
+        headers: activeHeaders,
+        params: {
+            from: 0,
+            size: 20,
+            statuses: 'SETTLEMENT,CAPTURE,REFUND,PARTIAL_REFUND',
+            payment_types: 'QRIS,GOPAY,OFFLINE_CREDIT_CARD,OFFLINE_DEBIT_CARD,CREDIT_CARD',
+            start_time: startTimeISO,
+            end_time: now.toISOString(),
+            merchant_ids: merchantId
+        },
+        timeout: 10000
+    });
+    return response.data?.transactions || response.data?.data?.transactions || response.data?.data || [];
+}
+
+async function getRecentTransactions(activeHeaders, merchantId, forceRefresh = false) {
+    const nowMs = Date.now();
+    if (!forceRefresh && txCache.transactions && txCache.merchantId === merchantId && (nowMs - txCache.fetchedAt) < TX_CACHE_MS) {
+        return txCache.transactions;
+    }
+    if (!forceRefresh && txCache.inflight) {
+        return txCache.inflight;
+    }
+    txCache.inflight = (async () => {
+        try {
+            const transactions = await fetchTransactionsFromApi(activeHeaders, merchantId);
+            txCache = { fetchedAt: Date.now(), merchantId, transactions, inflight: null };
+            return transactions;
+        } catch (err) {
+            txCache.inflight = null;
+            throw err;
+        }
+    })();
+    return txCache.inflight;
+}
+
 // Core Helper: Verifikasi Pembayaran dari GoPay API
 // qrisId: scope klaim — satu txId hanya bisa diklaim oleh satu qrisId
 async function verifyPayment(amount, startTime, merchantIdOverride = null, userAgent = null, qrisId = null) {
@@ -576,37 +629,18 @@ async function verifyPayment(amount, startTime, merchantIdOverride = null, userA
         throw new Error('Sesi GoPay belum ada. Jalankan `node login.js` di terminal.');
     }
 
-    const fetchCheckPayment = async (activeHeaders) => {
-        const merchantId = merchantIdOverride || process.env.GOPAY_MERCHANT_ID || '';
-        const now = new Date();
-        const startTimeISO = startTime ? new Date(startTime).toISOString() : new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString();
-        const endTimeISO = now.toISOString();
+    const merchantId = merchantIdOverride || process.env.GOPAY_MERCHANT_ID || '';
 
-        return await axios.get(GOJEK_TRANSACTIONS_URL, {
-            headers: activeHeaders,
-            params: {
-                from: 0,
-                size: 20,
-                statuses: 'SETTLEMENT,CAPTURE,REFUND,PARTIAL_REFUND',
-                payment_types: 'QRIS,GOPAY,OFFLINE_CREDIT_CARD,OFFLINE_DEBIT_CARD,CREDIT_CARD',
-                start_time: startTimeISO,
-                end_time: endTimeISO,
-                merchant_ids: merchantId
-            },
-            timeout: 10000
-        });
-    };
-
-    let response;
+    let rawTransactions;
     try {
-        response = await fetchCheckPayment(headers);
+        rawTransactions = await getRecentTransactions(headers, merchantId, false);
     } catch (firstErr) {
         if (firstErr.response && firstErr.response.status === 401) {
             logActivity('WARNING', 'Sesi expired (401) di verifyPayment. Memulai auto-refresh...');
             const refreshed = await sessionManager.refreshSession();
             if (refreshed) {
                 const newHeaders = await sessionManager.getValidHeaders(userAgent);
-                response = await fetchCheckPayment(newHeaders);
+                rawTransactions = await getRecentTransactions(newHeaders, merchantId, true);
             } else {
                 throw firstErr;
             }
@@ -614,8 +648,6 @@ async function verifyPayment(amount, startTime, merchantIdOverride = null, userA
             throw firstErr;
         }
     }
-
-    const rawTransactions = response.data?.transactions || response.data?.data?.transactions || response.data?.data || [];
     const targetAmount = parseInt(amount, 10);
     const filterStartTimeMs = startTime ? new Date(startTime).getTime() : 0;
 
@@ -659,6 +691,35 @@ async function verifyPayment(amount, startTime, merchantIdOverride = null, userA
     return null;
 }
 
+// [PATCH manual-check] Cek terakhir untuk satu QRIS: dipakai endpoint status saat QRIS
+// baru saja kedaluwarsa dan oleh timer terjadwal saat pembuatan QRIS. Melewati cooldown
+// per QRIS, tapi tetap memakai cache daftar transaksi bersama.
+async function finalizeQris(qrisId) {
+    const qris = qrisStore.get(qrisId);
+    if (!qris || qris.status === 'PAID') {
+        return qris && qris.transaction ? qris.transaction : null;
+    }
+    if (qris.finalizing) return null;
+    qris.finalizing = true;
+    try {
+        const matched = await verifyPayment(qris.amount, qris.createdAt, null, null, qris.trxId || qrisId);
+        if (matched) {
+            qris.status = 'PAID';
+            qris.transaction = matched;
+            qrisStore.set(qrisId, qris);
+            logActivity('SUCCESS', 'Final check: pembayaran QRIS ID ' + qrisId + ' terverifikasi lunas untuk nominal Rp ' + qris.amount);
+            return matched;
+        }
+        qrisStore.delete(qrisId);
+        logActivity('INFO', 'Final check: QRIS ID ' + qrisId + ' kedaluwarsa tanpa pembayaran');
+        return null;
+    } catch (err) {
+        logActivity('ERROR', 'Final check QRIS ID ' + qrisId + ' gagal: ' + err.message);
+        qrisStore.delete(qrisId);
+        return null;
+    }
+}
+
 // Endpoint Public Check Status QRIS (Dipanggil oleh Halaman Frontend HTML QRIS tanpa butuh API Key)
 app.get('/api/qr-status/:id', async (req, res) => {
     const qrisId = req.params.id;
@@ -672,9 +733,24 @@ app.get('/api/qr-status/:id', async (req, res) => {
     }
 
     if (Date.now() > qris.expiresAt.getTime()) {
-        qrisStore.delete(qrisId);
+        // [PATCH manual-check] Satu cek terakhir sebelum dinyatakan kedaluwarsa,
+        // untuk menangkap pembayaran yang masuk di detik-detik terakhir masa berlaku.
+        const finalMatch = await finalizeQris(qrisId);
+        if (finalMatch) {
+            return res.json({ success: true, paid: true, status: 'PAID', transaction: finalMatch });
+        }
         return res.json({ success: false, paid: false, status: 'EXPIRED', message: 'QRIS sudah kedaluwarsa' });
     }
+
+    // [PATCH manual-check] Cooldown server per QRIS: cek berulang dalam jeda STATUS_COOLDOWN_MS
+    // dijawab dari status terakhir TANPA memanggil API Gojek lagi.
+    const nowMs = Date.now();
+    if (qris.lastStatusCheckAt && (nowMs - qris.lastStatusCheckAt) < STATUS_COOLDOWN_MS) {
+        const retryAfter = Math.ceil((STATUS_COOLDOWN_MS - (nowMs - qris.lastStatusCheckAt)) / 1000);
+        return res.json({ success: true, paid: false, status: 'PENDING', cached: true, retry_after_seconds: retryAfter, message: 'Terlalu cepat, coba lagi dalam ' + retryAfter + ' detik' });
+    }
+    qris.lastStatusCheckAt = nowMs;
+    qrisStore.set(qrisId, qris);
 
     try {
         // Pakai trx_id sebagai scope klaim agar transaksi hanya bisa diklaim oleh payment ini
@@ -686,7 +762,7 @@ app.get('/api/qr-status/:id', async (req, res) => {
             logActivity('SUCCESS', `Pembayaran QRIS ID ${qrisId} terverifikasi lunas untuk nominal Rp ${qris.amount}`);
             return res.json({ success: true, paid: true, status: 'PAID', transaction: matched });
         }
-        return res.json({ success: true, paid: false, status: 'PENDING', message: 'Belum ada pembayaran masuk' });
+        return res.json({ success: true, paid: false, status: 'PENDING', retry_after_seconds: Math.ceil(STATUS_COOLDOWN_MS / 1000), message: 'Belum ada pembayaran masuk' });
     } catch (err) {
         return res.json({ success: false, paid: false, status: 'PENDING', message: err.message });
     }

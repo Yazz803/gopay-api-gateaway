@@ -104,10 +104,7 @@ export async function GET(
             <span id="btn-label">🔄 Cek Status Pembayaran</span>
         </button>
 
-        <div class="toggle-box">
-            <input type="checkbox" id="chk-auto" onchange="handleAutoPollChange(this)">
-            <label for="chk-auto">Cek otomatis setiap 8 detik (Opsional)</label>
-        </div>
+        <p style="font-size:13px;color:#94a3b8;margin-top:14px;">Sudah selesai membayar? Tekan tombol <strong>Cek Status Pembayaran</strong> di atas untuk memverifikasi. Status tidak dicek otomatis demi keamanan akun merchant.</p>
 
         <div class="success-box" id="success-details">
             <strong>✅ Pembayaran Berhasil!</strong>
@@ -123,7 +120,8 @@ export async function GET(
         let isChecking = false;
         let isPaid = false;
         let isExpired = false;
-        let pollTimer = null;
+        let cooldownUntil = 0;
+        let cooldownTimer = null;
 
         function updateCountdown() {
             if (isPaid) return;
@@ -137,9 +135,8 @@ export async function GET(
                 document.getElementById('status-icon').innerText = "🔴";
                 document.getElementById('status-text').innerText = "QRIS Kedaluwarsa";
                 document.getElementById('btn-check').disabled = true;
-                document.getElementById('chk-auto').disabled = true;
                 clearInterval(countdownInterval);
-                stopAutoPoll();
+                clearInterval(cooldownTimer);
                 return;
             }
 
@@ -152,8 +149,31 @@ export async function GET(
         const countdownInterval = setInterval(updateCountdown, 1000);
         updateCountdown();
 
+        function startCooldown(seconds) {
+            const btn = document.getElementById('btn-check');
+            const label = document.getElementById('btn-label');
+            cooldownUntil = Date.now() + seconds * 1000;
+            btn.disabled = true;
+            clearInterval(cooldownTimer);
+            const tick = () => {
+                const sisa = Math.ceil((cooldownUntil - Date.now()) / 1000);
+                if (sisa <= 0) {
+                    clearInterval(cooldownTimer);
+                    if (!isPaid && !isExpired) {
+                        btn.disabled = false;
+                        label.innerText = '🔄 Cek Status Pembayaran';
+                    }
+                    return;
+                }
+                label.innerText = '⏳ Cek lagi dalam ' + sisa + ' detik';
+            };
+            tick();
+            cooldownTimer = setInterval(tick, 500);
+        }
+
         async function checkStatusManual() {
             if (isChecking || isPaid || isExpired) return;
+            if (Date.now() < cooldownUntil) return;
             isChecking = true;
 
             const btn = document.getElementById('btn-check');
@@ -170,32 +190,37 @@ export async function GET(
 
                 if (data.success && data.paid) {
                     onPaymentSuccess(data.transaction);
+                    return;
                 } else if (data.status === 'EXPIRED') {
                     isExpired = true;
                     updateCountdown();
+                    return;
                 } else {
-                    document.getElementById('status-text').innerText = "Belum Dibayar (Dicoba lagi...)";
-                    setTimeout(() => {
-                        if (!isPaid && !isExpired) {
-                            document.getElementById('status-text').innerText = "Menunggu Pembayaran";
-                        }
-                    }, 2000);
+                    document.getElementById('status-text').innerText = "Belum Dibayar - silakan cek lagi sebentar lagi";
+                    const jeda = (data && data.retry_after_seconds) ? data.retry_after_seconds : 10;
+                    startCooldown(jeda);
                 }
             } catch (err) {
                 console.error("Gagal periksa status:", err);
+                startCooldown(10);
             } finally {
                 isChecking = false;
-                if (!isPaid && !isExpired) {
-                    btn.disabled = false;
-                }
                 spinner.style.display = 'none';
-                label.innerText = '🔄 Cek Status Pembayaran';
             }
         }
 
+        // Satu kali cek otomatis saat pembeli kembali ke halaman ini
+        // (mis. setelah selesai membayar di aplikasi e-wallet/bank). Bukan polling:
+        // hanya terpicu oleh peristiwa halaman kembali tampil, dan tetap tunduk pada cooldown server.
+        document.addEventListener('visibilitychange', () => {
+            if (!document.hidden) {
+                checkStatusManual();
+            }
+        });
+
         function onPaymentSuccess(tx) {
             isPaid = true;
-            stopAutoPoll();
+            clearInterval(cooldownTimer);
             clearInterval(countdownInterval);
 
             document.getElementById('status-badge').className = "status-badge status-paid";
@@ -214,34 +239,6 @@ export async function GET(
             }
         }
 
-        function startAutoPoll() {
-            stopAutoPoll();
-            pollTimer = setInterval(() => {
-                if (!isChecking && !isPaid && !isExpired) {
-                    checkStatusManual();
-                }
-            }, 8000);
-        }
-
-        function stopAutoPoll() {
-            if (pollTimer) {
-                clearInterval(pollTimer);
-                pollTimer = null;
-            }
-        }
-
-        function handleAutoPollChange(chk) {
-            if (chk.checked) {
-                startAutoPoll();
-            } else {
-                stopAutoPoll();
-            }
-        }
-
-        // Start auto poll on load if checked
-        if (document.getElementById('chk-auto').checked) {
-            startAutoPoll();
-        }
     </script>
 </body>
 </html>`;

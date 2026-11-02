@@ -113,6 +113,9 @@ export interface QrStatusResponse {
   success: boolean;
   status: 'PENDING' | 'PAID' | 'EXPIRED' | 'NOT_FOUND';
   paid?: boolean;
+  // [PATCH manual-check] Diisi bila jawaban berasal dari cooldown/cache server
+  cached?: boolean;
+  retry_after_seconds?: number;
   qris?: QrisItem;
   transaction?: NormalizedTransaction | null;
   message?: string;
