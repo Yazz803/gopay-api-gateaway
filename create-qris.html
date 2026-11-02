@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Generator QRIS GoPay (Fixed QR2603XXS)</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    body { background: #f1f5f9; display: flex; justify-content: center; align-items: center; min-height: 100vh; padding: 20px; }
+    .card { background: #fff; padding: 24px; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.08); max-width: 440px; width: 100%; }
+    h2 { color: #0f172a; font-size: 1.2rem; margin-bottom: 4px; }
+    .subtitle { color: #64748b; font-size: 0.82rem; margin-bottom: 18px; }
+    .form-group { margin-bottom: 14px; }
+    label { display: block; font-size: 0.82rem; font-weight: 600; color: #334155; margin-bottom: 6px; }
+    input, select { width: 100%; padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 0.95rem; outline: none; }
+    input:focus, select:focus { border-color: #00aa13; }
+    button { width: 100%; padding: 12px; background: #00aa13; color: #fff; border: none; border-radius: 8px; font-size: 0.95rem; font-weight: 600; cursor: pointer; margin-top: 6px; }
+    button:hover { background: #008a0f; }
+    #qr-container { display: flex; flex-direction: column; align-items: center; margin-top: 20px; padding-top: 18px; border-top: 1px dashed #e2e8f0; }
+    #qrcode { padding: 12px; background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; }
+    .info-badge { margin-top: 10px; font-size: 0.78rem; color: #0f766e; background: #f0fdf4; padding: 6px 12px; border-radius: 6px; border: 1px solid #bbf7d0; text-align: center; width: 100%; }
+    .result-box { margin-top: 14px; width: 100%; }
+    textarea { width: 100%; height: 68px; padding: 8px; font-size: 0.72rem; font-family: monospace; color: #475569; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 6px; resize: none; }
+    .copy-btn { background: #e2e8f0; color: #1e293b; margin-top: 6px; padding: 8px; font-size: 0.8rem; }
+  </style>
+</head>
+<body>
+
+  <div class="card">
+    <h2>QRIS Custom Nominal</h2>
+    <p class="subtitle">MUHAMMAD YAZID AKBAR — BOGOR</p>
+
+    <div class="form-group">
+      <label for="nominal">Nominal Pembayaran (Rp)</label>
+      <input type="number" id="nominal" value="100" min="1" oninput="handleGenerate()">
+    </div>
+
+    <div class="form-group">
+      <label for="mode">Mode Struktur QRIS</label>
+      <select id="mode" onchange="handleGenerate()">
+        <option value="statis_nominal">Mode 1: Tanpa Invoice Acak (Direkomendasikan - Lolos Scan)</option>
+        <option value="tanpa_tag62">Mode 2: Bersih Tanpa Tag 62 (Alternatif Lolos Scan)</option>
+        <option value="gopay_5028">Mode 3: Format Asli GoPay (Tag 5028 + Timestamp Otomatis)</option>
+      </select>
+    </div>
+
+    <button onclick="handleGenerate()">Refresh / Buat QR Code</button>
+
+    <div id="qr-container">
+      <div id="qrcode"></div>
+      <div class="info-badge" id="timestampInfo"></div>
+
+      <div class="result-box">
+        <label>String QRIS EMVCo:</label>
+        <textarea id="rawString" readonly></textarea>
+        <button class="copy-btn" onclick="copyString()">Salin String QRIS</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function calculateCRC16(str) {
+      let crc = 0xFFFF;
+      for (let c = 0; c < str.length; c++) {
+        crc ^= str.charCodeAt(c) << 8;
+        for (let i = 0; i < 8; i++) {
+          if ((crc & 0x8000) !== 0) {
+            crc = ((crc << 1) ^ 0x1021) & 0xFFFF;
+          } else {
+            crc = (crc << 1) & 0xFFFF;
+          }
+        }
+      }
+      return (crc & 0xFFFF).toString(16).toUpperCase().padStart(4, "0");
+    }
+
+    function formatTimestamp(date) {
+      const pad = (n) => String(n).padStart(2, "0");
+      return `${date.getFullYear()}${pad(date.getMonth() + 1)}${pad(date.getDate())}${pad(date.getHours())}${pad(date.getMinutes())}${pad(date.getSeconds())}`;
+    }
+
+    function randomString(len = 10) {
+      const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+      let res = "";
+      for (let i = 0; i < len; i++) {
+        res += chars.charAt(Math.floor(Math.random() * chars.length));
+      }
+      return res;
+    }
+
+    function buildQRIS(nominal, mode, now) {
+      // Tag 010211 = Statis, 010212 = Dinamis
+      const pointOfInitiation = (mode === "gopay_5028") ? "010212" : "010211";
+
+      const baseMerchant =
+        "000201" + pointOfInitiation +
+        "26610014COM.GO-JEK.WWW01189360091435134592920210G5134592920303UMI" +
+        "51440014ID.CO.QRIS.WWW0215ID10266236647640303UMI" +
+        "520489995303360";
+
+      const nomStr = String(Math.max(1, Math.floor(nominal)));
+      const tag54 = `54${String(nomStr.length).padStart(2, "0")}${nomStr}`;
+      const baseMid = "5802ID5920MUHAMMAD YAZID AKBAR6005BOGOR610516138";
+
+      let tag62 = "";
+      if (mode === "statis_nominal") {
+        // Hanya menyertakan Sub-tag 07 (Terminal ID A01) seperti QR Statis GoPay asli
+        tag62 = "62070703A01";
+      } else if (mode === "gopay_5028") {
+        // Format identik dengan contoh asli: Sub-tag 50 (28 char) diakhiri 'ID' + Sub-tag 07 ('A01')
+        const prefixRef = "A" + Math.floor(Math.random() * 9 + 1);
+        const timeStr = formatTimestamp(now);
+        const token = randomString(10);
+        const subTag50Val = `${prefixRef}${timeStr}${token}ID`; // Total 28 karakter
+        const subTag50 = `50${String(subTag50Val.length).padStart(2, "0")}${subTag50Val}`;
+        const subTag07 = "0703A01";
+        const tag62Val = `${subTag50}${subTag07}`;
+        tag62 = `62${String(tag62Val.length).padStart(2, "0")}${tag62Val}`;
+      }
+
+      const raw = `${baseMerchant}${tag54}${baseMid}${tag62}6304`;
+      const crc = calculateCRC16(raw);
+      return `${raw}${crc}`;
+    }
+
+    function handleGenerate() {
+      const nominalVal = document.getElementById("nominal").value || 100;
+      const modeVal = document.getElementById("mode").value;
+      const now = new Date();
+
+      const qrisResult = buildQRIS(nominalVal, modeVal, now);
+      document.getElementById("rawString").value = qrisResult;
+      document.getElementById("timestampInfo").innerText =
+        `Digenerate pada: ${now.toLocaleDateString('id-ID')} ${now.toLocaleTimeString('id-ID')} | Rp${Number(nominalVal).toLocaleString('id-ID')}`;
+
+      const qrDiv = document.getElementById("qrcode");
+      qrDiv.innerHTML = "";
+      new QRCode(qrDiv, {
+        text: qrisResult,
+        width: 220,
+        height: 220,
+        colorDark: "#000000",
+        colorLight: "#ffffff",
+        correctLevel: QRCode.CorrectLevel.M
+      });
+    }
+
+    function copyString() {
+      const copyText = document.getElementById("rawString");
+      copyText.select();
+      navigator.clipboard.writeText(copyText.value);
+      alert("String QRIS berhasil disalin!");
+    }
+
+    window.addEventListener("DOMContentLoaded", handleGenerate);
+  </script>
+</body>
+</html>

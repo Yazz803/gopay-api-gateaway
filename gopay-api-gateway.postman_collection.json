@@ -1,0 +1,525 @@
+{
+  "info": {
+    "_postman_id": "b1a7d6e2-9b24-4f88-82a1-e49f85c18942",
+    "name": "GoPay Merchant API Gateway",
+    "description": "Collection Postman lengkap untuk GoPay Merchant API Gateway (Self-Hosted Node.js/Express) oleh Ahmad Zaki (@ahmadzakiyo / @nuxysproject).\n\nGateway ini mengotomatisasi pengecekan transaksi dan pencetakan QRIS dinamis EMVCo dari akun GoPay / GoFood Merchant dengan proteksi anti double-claim.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "apikey",
+    "apikey": [
+      {
+        "key": "key",
+        "value": "X-Api-Key",
+        "type": "string"
+      },
+      {
+        "key": "value",
+        "value": "{{apiKey}}",
+        "type": "string"
+      },
+      {
+        "key": "in",
+        "value": "header",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000",
+      "type": "string",
+      "description": "Base URL server gateway (misal: http://localhost:3000 atau https://gopay.domainkamu.com)"
+    },
+    {
+      "key": "apiKey",
+      "value": "YOUR_API_KEY_HERE",
+      "type": "string",
+      "description": "API Key rahasia sesuai yang dikonfigurasi pada file .env"
+    },
+    {
+      "key": "merchantId",
+      "value": "",
+      "type": "string",
+      "description": "GOPAY_MERCHANT_ID (opsional, jika ingin meng-override via header x-gopay-merchant-id)"
+    },
+    {
+      "key": "qris_id",
+      "value": "",
+      "type": "string",
+      "description": "QRIS ID otomatis tersimpan saat memanggil /create-qris"
+    },
+    {
+      "key": "trx_id",
+      "value": "",
+      "type": "string",
+      "description": "TRX ID otomatis tersimpan saat memanggil /create-qris (dipakai untuk scope klaim anti double-claim)"
+    }
+  ],
+  "item": [
+    {
+      "name": "01. Health & System Info",
+      "item": [
+        {
+          "name": "Root Endpoint",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                ""
+              ]
+            },
+            "description": "Menampilkan pesan teks status running gateway: 'GoPay Partner API Gateway Berjalan'"
+          },
+          "response": []
+        },
+        {
+          "name": "Health Check (Standard)",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/health",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "health"
+              ]
+            },
+            "description": "Memeriksa kesehatan server gateway. Mengembalikan status OK, nama service, dan timestamp server saat ini."
+          },
+          "response": []
+        },
+        {
+          "name": "API Health Check",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/health",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "health"
+              ]
+            },
+            "description": "Health check berformat JSON standar API: { success: true, message: 'Layanan API GoPay Berfungsi Normal', timestamp: ... }"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "02. Sesi & Autentikasi",
+      "item": [
+        {
+          "name": "Cek Status Token GoPay",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/token-status",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "token-status"
+              ]
+            },
+            "description": "Memverifikasi apakah token GoPay Merchant masih aktif dan valid dengan ping ke endpoint transaksi Gojek Merchant API.\n\nMembutuhkan autentikasi API Key (diberikan secara default via header X-Api-Key atau query ?api_key=...)."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "03. QRIS Dinamis (EMVCo)",
+      "item": [
+        {
+          "name": "Create QRIS Dinamis (GET)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    var res = pm.response.json();",
+                  "    if (res.success && res.data) {",
+                  "        if (res.data.qris_id) {",
+                  "            pm.collectionVariables.set('qris_id', res.data.qris_id);",
+                  "            console.log('Saved qris_id:', res.data.qris_id);",
+                  "        }",
+                  "        if (res.data.trx_id) {",
+                  "            pm.collectionVariables.set('trx_id', res.data.trx_id);",
+                  "            console.log('Saved trx_id:', res.data.trx_id);",
+                  "        }",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/create-qris?amount=25000",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "create-qris"
+              ],
+              "query": [
+                {
+                  "key": "amount",
+                  "value": "25000",
+                  "description": "Nominal pembayaran dalam Rupiah (wajib, integer > 0)"
+                }
+              ]
+            },
+            "description": "Membuat QRIS nominal custom dari QRIS statis secara in-memory (lokal) via URL Query parameter. QRIS aktif selama 5 menit.\n\nSetelah berhasil dieksekusi, script Test otomatis menyimpan `qris_id` dan `trx_id` ke variabel collection."
+          },
+          "response": []
+        },
+        {
+          "name": "Create QRIS Dinamis (POST)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    var res = pm.response.json();",
+                  "    if (res.success && res.data) {",
+                  "        if (res.data.qris_id) {",
+                  "            pm.collectionVariables.set('qris_id', res.data.qris_id);",
+                  "            console.log('Saved qris_id:', res.data.qris_id);",
+                  "        }",
+                  "        if (res.data.trx_id) {",
+                  "            pm.collectionVariables.set('trx_id', res.data.trx_id);",
+                  "            console.log('Saved trx_id:', res.data.trx_id);",
+                  "        }",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 25000\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/create-qris",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "create-qris"
+              ]
+            },
+            "description": "Membuat QRIS nominal custom via JSON Request Body. Direkomendasikan untuk integrasi backend toko online / payment gateway."
+          },
+          "response": []
+        },
+        {
+          "name": "Halaman Pembayaran QRIS (Web UI)",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/qr/:id",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "qr",
+                ":id"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "{{qris_id}}",
+                  "description": "QRIS ID yang didapat dari pemanggilan /create-qris"
+                }
+              ]
+            },
+            "description": "Membuka halaman HTML pembayaran QRIS yang interaktif. Dilengkapi dengan:\n- Tombol Cek Manual ('Cek Status Pembayaran')\n- Hitung mundur kedaluwarsa 5 menit\n- Toggle auto-polling (interval 8 detik)"
+          },
+          "response": []
+        },
+        {
+          "name": "Download / Raw QR Image (Redirect 302)",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/qr/:id?format=raw",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "qr",
+                ":id"
+              ],
+              "query": [
+                {
+                  "key": "format",
+                  "value": "raw",
+                  "description": "Format output mentah: 'raw' atau gunakan 'raw=1' untuk redirect 302 ke PNG generator"
+                }
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "{{qris_id}}",
+                  "description": "QRIS ID yang didapat dari pemanggilan /create-qris"
+                }
+              ]
+            },
+            "description": "Mengambil gambar QR Code PNG mentah via HTTP Redirect 302 ke qrserver API."
+          },
+          "response": []
+        },
+        {
+          "name": "Check Status QRIS (Public Frontend)",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/qr-status/:id",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "qr-status",
+                ":id"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "{{qris_id}}",
+                  "description": "QRIS ID yang ingin diperiksa status pembayarannya"
+                }
+              ]
+            },
+            "description": "Endpoint publik yang digunakan oleh halaman HTML /qr/:id untuk memeriksa status pembayaran tanpa perlu mengekspos API_KEY di frontend browser."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "04. Verifikasi Pembayaran (Check Payment)",
+      "item": [
+        {
+          "name": "Check Payment (GET)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/check-payment?amount=25000&trx_id={{trx_id}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "check-payment"
+              ],
+              "query": [
+                {
+                  "key": "amount",
+                  "value": "25000",
+                  "description": "Nominal transaksi yang dicari (wajib)"
+                },
+                {
+                  "key": "trx_id",
+                  "value": "{{trx_id}}",
+                  "description": "TRX-ID dari /create-qris sebagai scope klaim agar tidak saling klaim dengan payment nominal sama (sangat direkomendasikan)"
+                },
+                {
+                  "key": "startTime",
+                  "value": "",
+                  "disabled": true,
+                  "description": "Timestamp ISO awal pencarian (opsional, default: 24 jam lalu)"
+                }
+              ]
+            },
+            "description": "Mencari transaksi yang cocok berdasarkan nominal dan timestamp via GET query params. Setiap transaksi hanya bisa diklaim 1x per trx_id."
+          },
+          "response": []
+        },
+        {
+          "name": "Check Payment (POST)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 25000,\n  \"trx_id\": \"{{trx_id}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/check-payment",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "check-payment"
+              ]
+            },
+            "description": "Mencari transaksi yang cocok via POST JSON Body. Mendukung field `amount`, `trx_id`, dan `startTime`."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "05. Mutasi & Transaksi",
+      "item": [
+        {
+          "name": "Daftar Mutasi Transaksi",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "x-gopay-merchant-id",
+                "value": "{{merchantId}}",
+                "type": "text",
+                "disabled": true,
+                "description": "Opsional: override GoPay Merchant ID"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/transactions?pageSize=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "transactions"
+              ],
+              "query": [
+                {
+                  "key": "pageSize",
+                  "value": "20",
+                  "description": "Jumlah transaksi yang diambil (default: 20)"
+                },
+                {
+                  "key": "startTime",
+                  "value": "",
+                  "disabled": true,
+                  "description": "Waktu awal dalam Unix timestamp detik (default: 3 hari lalu)"
+                },
+                {
+                  "key": "endTime",
+                  "value": "",
+                  "disabled": true,
+                  "description": "Waktu akhir dalam Unix timestamp detik (default: sekarang)"
+                }
+              ]
+            },
+            "description": "Mengambil riwayat mutasi QRIS / GoPay / Kartu dari GoPay Merchant Analytics API."
+          },
+          "response": []
+        },
+        {
+          "name": "Semua Transaksi Bulan Ini (Shortcut)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/transactions/all",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "transactions",
+                "all"
+              ]
+            },
+            "description": "Shortcut untuk mengambil riwayat transaksi dari tanggal 1 bulan berjalan hingga saat ini (maksimal 100 transaksi)."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "06. Monitoring & Logs",
+      "item": [
+        {
+          "name": "Get Activity Logs",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/logs",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "logs"
+              ]
+            },
+            "description": "Mengambil log aktivitas gateway internal (maksimal 100 entri terbaru) untuk keperluan monitoring dan troubleshooting."
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}
