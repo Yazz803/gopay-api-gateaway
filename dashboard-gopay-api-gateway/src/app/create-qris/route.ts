@@ -11,11 +11,11 @@ async function handleCreateQris(req: NextRequest) {
   const auth = validateApiKey(req);
   if (!auth.valid) return auth.response!;
 
-  let amount: any;
+  let amount: string | number | null = null;
   if (req.method === 'POST') {
     try {
-      const body = await req.json();
-      amount = body?.amount;
+      const body = (await req.json()) as Record<string, unknown>;
+      amount = (body?.amount as string | number) ?? null;
     } catch {
       // Body may not be valid json or empty
     }

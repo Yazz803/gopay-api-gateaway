@@ -1,32 +1,12 @@
-export interface QrisItem {
-  data: string;
-  amount: number;
-  trxId: string;
-  expiresAt: Date;
-  createdAt: Date;
-  status: 'PENDING' | 'PAID' | 'EXPIRED';
-  transaction?: any;
-}
+import type {
+  QrisItem,
+  ClaimItem,
+  ActivityLogItem,
+  GatewayState,
+  LogType,
+} from '@/types';
 
-export interface ClaimItem {
-  qrisId: string | null;
-  claimedAt: number;
-}
-
-export interface ActivityLogItem {
-  id: number;
-  timestamp: string;
-  type: 'INFO' | 'SUCCESS' | 'WARNING' | 'ERROR' | 'SYSTEM';
-  message: string;
-  details?: any;
-}
-
-interface GatewayState {
-  qrisStore: Map<string, QrisItem>;
-  claimedTransactions: Map<string, ClaimItem>;
-  activityLogs: ActivityLogItem[];
-  initialized: boolean;
-}
+export type { QrisItem, ClaimItem, ActivityLogItem, GatewayState, LogType };
 
 const MAX_LOGS = 100;
 const CLAIMED_CLEANUP_INTERVAL_MS = 24 * 60 * 60 * 1000; // 24 jam
@@ -48,9 +28,9 @@ if (!globalForGateway.__GOPAY_GATEWAY_STATE__) {
 export const gatewayState = globalForGateway.__GOPAY_GATEWAY_STATE__;
 
 export function logActivity(
-  type: 'INFO' | 'SUCCESS' | 'WARNING' | 'ERROR' | 'SYSTEM',
+  type: LogType,
   message: string,
-  details: any = null
+  details: unknown = null
 ) {
   const timestamp = new Date().toISOString();
   const logObj: ActivityLogItem = { id: Date.now(), timestamp, type, message, details };
@@ -64,7 +44,7 @@ export function logActivity(
 export function cleanExpiredTransactions() {
   const now = Date.now();
   for (const [txId, claim] of gatewayState.claimedTransactions.entries()) {
-    const claimedAt = typeof claim === 'object' ? claim.claimedAt : (claim as number);
+    const claimedAt = typeof claim === 'object' && claim !== null ? claim.claimedAt : (claim as unknown as number);
     if (now - claimedAt > CLAIMED_CLEANUP_INTERVAL_MS) {
       gatewayState.claimedTransactions.delete(txId);
     }

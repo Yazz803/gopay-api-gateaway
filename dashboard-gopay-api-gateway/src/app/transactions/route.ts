@@ -24,9 +24,10 @@ export async function GET(req: NextRequest) {
     });
 
     return jsonResponse(result);
-  } catch (err: any) {
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Unknown error';
     return jsonResponse(
-      { success: false, error: err.message },
+      { success: false, error: message },
       { status: 500 }
     );
   }

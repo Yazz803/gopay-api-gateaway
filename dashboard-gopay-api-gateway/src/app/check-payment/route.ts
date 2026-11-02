@@ -9,16 +9,16 @@ async function handleCheckPayment(req: NextRequest) {
   const auth = validateApiKey(req);
   if (!auth.valid) return auth.response!;
 
-  let amount: any;
-  let startTime: any;
-  let scopeId: any;
+  let amount: string | number | null = null;
+  let startTime: string | null = null;
+  let scopeId: string | null = null;
 
   if (req.method === 'POST') {
     try {
-      const body = await req.json();
-      amount = body?.amount;
-      startTime = body?.startTime || body?.start_time;
-      scopeId = body?.trx_id || body?.qris_id;
+      const body = (await req.json()) as Record<string, unknown>;
+      amount = (body?.amount as string | number) ?? null;
+      startTime = ((body?.startTime || body?.start_time) as string) ?? null;
+      scopeId = ((body?.trx_id || body?.qris_id) as string) ?? null;
     } catch {
       // Body may be empty or not json
     }
@@ -71,10 +71,11 @@ async function handleCheckPayment(req: NextRequest) {
         message: 'Pembayaran belum ditemukan atau sudah pernah diklaim',
       });
     }
-  } catch (err: any) {
-    const errorDetail = err.response
-      ? `HTTP ${err.response.status}: ${JSON.stringify(err.response.data)}`
-      : err.message;
+  } catch (err: unknown) {
+    const errorObj = err as { response?: { status?: number; data?: unknown }; message?: string };
+    const errorDetail = errorObj.response
+      ? `HTTP ${errorObj.response.status}: ${JSON.stringify(errorObj.response.data)}`
+      : errorObj.message || 'Unknown error';
     logActivity('ERROR', `Gagal periksa pembayaran: ${errorDetail}`);
     return jsonResponse(
       {

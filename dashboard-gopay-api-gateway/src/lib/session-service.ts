@@ -2,9 +2,15 @@ import fs from 'fs';
 import path from 'path';
 import { logActivity } from './gateway-state';
 
-declare const __non_webpack_require__: any;
+declare const __non_webpack_require__: NodeRequire | undefined;
 
-function getSessionManager() {
+function getSessionManager(): {
+  SESSION_FILE: string;
+  getValidHeaders: (ua?: string) => Promise<Record<string, string> | null>;
+  refreshSession: () => Promise<boolean>;
+  loadSession: () => Record<string, unknown> | null;
+  isExpired: (session: unknown) => boolean;
+} {
   const nodeRequire =
     typeof __non_webpack_require__ !== 'undefined'
       ? __non_webpack_require__
@@ -63,8 +69,9 @@ export function syncSessionIn(): void {
         }
       }
     }
-  } catch (err: any) {
-    console.error('[SessionSyncIn] Error:', err.message);
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Unknown error';
+    console.error('[SessionSyncIn] Error:', message);
   }
 }
 
@@ -78,8 +85,9 @@ export function syncSessionOut(): void {
     for (const cand of candidates) {
       fs.copyFileSync(sourceFile, cand);
     }
-  } catch (err: any) {
-    console.error('[SessionSyncOut] Error:', err.message);
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Unknown error';
+    console.error('[SessionSyncOut] Error:', message);
   }
 }
 
@@ -100,13 +108,13 @@ export async function refreshSession(): Promise<boolean> {
   return result;
 }
 
-export function loadSession(): any {
+export function loadSession(): Record<string, unknown> | null {
   syncSessionIn();
   const sm = getSessionManager();
   return sm.loadSession();
 }
 
-export function isExpired(session: any): boolean {
+export function isExpired(session: unknown): boolean {
   const sm = getSessionManager();
   return sm.isExpired(session);
 }
@@ -122,8 +130,9 @@ if (typeof setInterval !== 'undefined') {
           await refreshSession();
         }
       }
-    } catch (err: any) {
-      logActivity('ERROR', `Gagal auto refresh session: ${err.message}`);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Unknown error';
+      logActivity('ERROR', `Gagal auto refresh session: ${message}`);
     }
   }, 6 * 60 * 60 * 1000);
 }

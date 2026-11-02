@@ -43,12 +43,13 @@ export async function checkTokenStatus(userAgent?: string | null) {
         message: 'Token dan Sesi GoPay Merchant Aktif',
       },
     };
-  } catch (err: any) {
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Unknown error';
     return {
       success: false,
       data: {
         token_status: 'invalid',
-        message: err.message,
+        message,
       },
     };
   }
@@ -61,7 +62,7 @@ export async function fetchTransactionsData(options: {
   pageSize?: number | string | null;
   userAgent?: string | null;
 }) {
-  let headers = await getValidHeaders(options.userAgent);
+  const headers = await getValidHeaders(options.userAgent);
 
   if (!headers) {
     throw new Error('Sesi GoPay belum ada. Jalankan `node login.js` di terminal.');
@@ -95,8 +96,9 @@ export async function fetchTransactionsData(options: {
   let response;
   try {
     response = await doRequest(headers);
-  } catch (firstErr: any) {
-    if (firstErr.response && firstErr.response.status === 401) {
+  } catch (firstErr: unknown) {
+    const errorResponse = (firstErr as { response?: { status?: number } })?.response;
+    if (errorResponse && errorResponse.status === 401) {
       logActivity('WARNING', 'Sesi expired (401). Memulai auto-refresh...');
       const refreshed = await refreshSession();
       if (refreshed) {
@@ -111,17 +113,20 @@ export async function fetchTransactionsData(options: {
     }
   }
 
-  const rawTransactions = response.data?.transactions || response.data?.data?.transactions || [];
-  const formattedTransactions = rawTransactions.map((tx: any) => ({
-    amount: parseGojekAmount(tx.gross_amount ?? tx.real_gross_amount ?? tx.amount?.value ?? tx.amount ?? 0),
-    status: tx.transaction_status ? tx.transaction_status.toLowerCase() : 'success',
-    time: tx.transaction_time || tx.settlement_time,
-    issuer: tx.qris_provider_aspi_issuer || 'GoPay / Bank',
-    order_id: tx.order_id,
-    transaction_id: tx.id,
-  }));
+  const rawTransactions = (response.data?.transactions || response.data?.data?.transactions || []) as Array<Record<string, unknown>>;
+  const formattedTransactions = rawTransactions.map((tx: Record<string, unknown>) => {
+    const grossAmount = (tx.gross_amount ?? tx.real_gross_amount ?? (tx.amount as { value?: unknown })?.value ?? tx.amount ?? 0) as string | number;
+    return {
+      amount: parseGojekAmount(grossAmount),
+      status: typeof tx.transaction_status === 'string' ? tx.transaction_status.toLowerCase() : 'success',
+      time: String(tx.transaction_time || tx.settlement_time || ''),
+      issuer: String(tx.qris_provider_aspi_issuer || 'GoPay / Bank'),
+      order_id: String(tx.order_id || ''),
+      transaction_id: String(tx.id || ''),
+    };
+  });
 
-  const totalAmount = formattedTransactions.reduce((total: number, tx: any) => total + tx.amount, 0);
+  const totalAmount = formattedTransactions.reduce((total: number, tx: { amount: number }) => total + tx.amount, 0);
 
   return {
     success: true,
@@ -137,7 +142,7 @@ export async function verifyPayment(
   userAgent?: string | null,
   qrisId?: string | null
 ) {
-  let headers = await getValidHeaders(userAgent);
+  const headers = await getValidHeaders(userAgent);
   if (!headers) {
     throw new Error('Sesi GoPay belum ada. Jalankan `node login.js` di terminal.');
   }
@@ -168,8 +173,9 @@ export async function verifyPayment(
   let response;
   try {
     response = await doRequest(headers);
-  } catch (firstErr: any) {
-    if (firstErr.response && firstErr.response.status === 401) {
+  } catch (firstErr: unknown) {
+    const errorResponse = (firstErr as { response?: { status?: number } })?.response;
+    if (errorResponse && errorResponse.status === 401) {
       logActivity('WARNING', 'Sesi expired (401) di verifyPayment. Memulai auto-refresh...');
       const refreshed = await refreshSession();
       if (refreshed) {
@@ -184,17 +190,18 @@ export async function verifyPayment(
     }
   }
 
-  const rawTransactions =
-    response.data?.transactions || response.data?.data?.transactions || response.data?.data || [];
+  const rawTransactions = (response.data?.transactions ||
+    response.data?.data?.transactions ||
+    response.data?.data ||
+    []) as Array<Record<string, unknown>>;
   const targetAmount = parseInt(String(amount), 10);
   const filterStartTimeMs = startTime ? new Date(startTime).getTime() : 0;
 
   for (const tx of rawTransactions) {
-    const txAmount = parseGojekAmount(
-      tx.gross_amount ?? tx.real_gross_amount ?? tx.amount?.value ?? tx.amount ?? 0
-    );
-    const txTimestamp = new Date(tx.transaction_time || tx.created_at || tx.settlement_time || 0).getTime();
-    const txId = tx.id || tx.order_id || tx.wallstreet_transaction_id;
+    const grossAmount = (tx.gross_amount ?? tx.real_gross_amount ?? (tx.amount as { value?: unknown })?.value ?? tx.amount ?? 0) as string | number;
+    const txAmount = parseGojekAmount(grossAmount);
+    const txTimestamp = new Date(String(tx.transaction_time || tx.created_at || tx.settlement_time || 0)).getTime();
+    const txId = String(tx.id || tx.order_id || tx.wallstreet_transaction_id || '');
 
     if (txAmount === targetAmount && txTimestamp >= filterStartTimeMs) {
       const existingClaim = gatewayState.claimedTransactions.get(txId);
@@ -204,22 +211,24 @@ export async function verifyPayment(
         gatewayState.claimedTransactions.set(txId, { qrisId: qrisId || null, claimedAt: Date.now() });
         logActivity('INFO', `TRX ${txId} diklaim oleh QRIS ${qrisId || 'manual-check'}`);
         return {
-          transaction_id: txId,
-          order_id: tx.order_id,
+          id: txId,
+          order_id: String(tx.order_id || txId),
           amount: txAmount,
-          payer_issuer: tx.qris_provider_aspi_issuer || 'GoPay / Bank',
-          payment_type: tx.payment_type || tx.transaction_source || 'GOPAY_INSTORE',
-          transaction_time: tx.transaction_time || tx.settlement_time,
+          status: 'success',
+          payer_issuer: String(tx.qris_provider_aspi_issuer || 'GoPay / Bank'),
+          payment_type: String(tx.payment_type || tx.transaction_source || 'GOPAY_INSTORE'),
+          transaction_time: String(tx.transaction_time || tx.settlement_time || new Date().toISOString()),
         };
       } else if (qrisId && existingClaim.qrisId === qrisId) {
         // Re-check dari QRIS yang sama -> kembalikan hasil yang sudah diklaim
         return {
-          transaction_id: txId,
-          order_id: tx.order_id,
+          id: txId,
+          order_id: String(tx.order_id || txId),
           amount: txAmount,
-          payer_issuer: tx.qris_provider_aspi_issuer || 'GoPay / Bank',
-          payment_type: tx.payment_type || tx.transaction_source || 'GOPAY_INSTORE',
-          transaction_time: tx.transaction_time || tx.settlement_time,
+          status: 'success',
+          payer_issuer: String(tx.qris_provider_aspi_issuer || 'GoPay / Bank'),
+          payment_type: String(tx.payment_type || tx.transaction_source || 'GOPAY_INSTORE'),
+          transaction_time: String(tx.transaction_time || tx.settlement_time || new Date().toISOString()),
         };
       } else {
         // Transaksi ini sudah diklaim oleh QRIS lain -> skip, cari berikutnya
