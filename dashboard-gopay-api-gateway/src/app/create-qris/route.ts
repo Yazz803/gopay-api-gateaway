@@ -106,7 +106,10 @@ async function handleCreateQris(req: NextRequest) {
   const expiresAt = new Date(Date.now() + QRIS_EXPIRY_MS);
   const createdAt = new Date();
 
+  const activeUserId = authUser?.id || auth.userId;
+
   gatewayState.qrisStore.set(qrisId, {
+    userId: activeUserId,
     data: dynamicCode,
     amount: parsedAmount,
     trxId,
@@ -134,7 +137,6 @@ async function handleCreateQris(req: NextRequest) {
 
   logActivity('INFO', `QRIS Dinamis dibuat | TRX-ID: ${trxId} | Nominal: Rp ${parsedAmount}`);
 
-  const activeUserId = authUser?.id || auth.userId;
   if (activeUserId) {
     try {
       await recordQrisOrderToDb(activeUserId, {

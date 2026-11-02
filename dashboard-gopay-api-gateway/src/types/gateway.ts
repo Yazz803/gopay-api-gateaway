@@ -5,6 +5,7 @@ export type QrisStatus = 'PENDING' | 'PAID' | 'EXPIRED';
 export type LogType = 'INFO' | 'SUCCESS' | 'WARNING' | 'ERROR' | 'SYSTEM';
 
 export interface QrisItem {
+  userId?: string;
   data: string;
   amount: number;
   trxId: string;

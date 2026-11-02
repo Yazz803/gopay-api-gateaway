@@ -4,6 +4,44 @@ import { encryptWithDek, decryptWithDek } from './crypto/vault';
 import fs from 'fs';
 import path from 'path';
 
+interface CachedActiveSession {
+  userId: string;
+  merchantId?: string;
+  session: Record<string, unknown>;
+  headers: Record<string, string>;
+  updatedAt: number;
+}
+
+const activeUserSessionCache = new Map<string, CachedActiveSession>();
+
+export function cacheActiveSession(userId: string, session: Record<string, unknown>, userAgent?: string | null) {
+  const token = session.access_token ? String(session.access_token) : '';
+  const authHeader = token.startsWith('Bearer ') ? token : `Bearer ${token}`;
+  const headers: Record<string, string> = {
+    Authorization: authHeader,
+    Cookie: String(session.cookie || ''),
+    'authentication-type': 'merchant',
+    Accept: 'application/json',
+    Origin: 'https://app.gobiz.com',
+    Referer: 'https://app.gobiz.com/',
+    'User-Agent':
+      userAgent ||
+      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+  };
+
+  activeUserSessionCache.set(userId, {
+    userId,
+    merchantId: session.merchant_id ? String(session.merchant_id) : undefined,
+    session,
+    headers,
+    updatedAt: Date.now(),
+  });
+}
+
+export function getActiveSessionForUser(userId: string): CachedActiveSession | null {
+  return activeUserSessionCache.get(userId) || null;
+}
+
 export async function saveMerchantSessionToDb(
   userId: string,
   dek: string,
@@ -88,6 +126,7 @@ export async function saveMerchantSessionToDb(
       }
     }
 
+    cacheActiveSession(userId, rawSession);
     return true;
   } catch (err: unknown) {
     console.error('[saveMerchantSessionToDb Error]:', err);
@@ -120,7 +159,7 @@ export async function getMerchantSessionFromDb(
     const refresh_token = row.encryptedRefreshToken ? decryptWithDek(row.encryptedRefreshToken, dek) : undefined;
     const cookie = row.encryptedCookie ? decryptWithDek(row.encryptedCookie, dek) : undefined;
 
-    return {
+    const sessionResult = {
       merchant_id,
       outlet_name,
       phone_number,
@@ -131,6 +170,9 @@ export async function getMerchantSessionFromDb(
       expires_at: row.expiresAt?.toISOString(),
       updated_at: row.updatedAt?.toISOString(),
     };
+
+    cacheActiveSession(userId, sessionResult);
+    return sessionResult;
   } catch (err: unknown) {
     console.error('[getMerchantSessionFromDb Error]:', err);
     return null;

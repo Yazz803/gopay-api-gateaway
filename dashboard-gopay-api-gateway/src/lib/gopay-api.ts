@@ -247,9 +247,10 @@ export async function verifyPayment(
   startTime?: string | Date | null,
   merchantIdOverride?: string | null,
   userAgent?: string | null,
-  qrisId?: string | null
+  qrisId?: string | null,
+  customHeaders?: Record<string, string> | null
 ) {
-  const headers = await getValidHeaders(userAgent);
+  const headers = customHeaders || (await getValidHeaders(userAgent));
   if (!headers) {
     throw new Error('Sesi GoPay belum ada. Silakan hubungkan akun GoPay Merchant melalui web app.');
   }
@@ -262,6 +263,9 @@ export async function verifyPayment(
   } catch (firstErr: unknown) {
     const errorResponse = (firstErr as { response?: { status?: number } })?.response;
     if (errorResponse && errorResponse.status === 401) {
+      if (customHeaders) {
+        throw new Error('Sesi GoPay telah kedaluwarsa. Silakan segarkan atau hubungkan ulang akun GoPay.');
+      }
       logActivity('WARNING', 'Sesi expired (401) di verifyPayment. Memulai auto-refresh...');
       const refreshed = await refreshSession();
       if (refreshed) {
@@ -330,7 +334,12 @@ export async function verifyPayment(
 // per QRIS, tapi tetap memakai cache daftar transaksi bersama.
 // Bila verifikasi gagal (mis. API Gojek sedang gangguan), entri QRIS TIDAK dihapus
 // agar cek berikutnya masih bisa mencoba lagi.
-export async function finalizeQris(qrisId: string, userAgent?: string | null) {
+export async function finalizeQris(
+  qrisId: string,
+  userAgent?: string | null,
+  customHeaders?: Record<string, string> | null,
+  merchantId?: string | null
+) {
   const qris = gatewayState.qrisStore.get(qrisId);
   if (!qris) return null;
   if (qris.status === 'PAID') return qris.transaction ?? null;
@@ -340,9 +349,10 @@ export async function finalizeQris(qrisId: string, userAgent?: string | null) {
     const matched = await verifyPayment(
       qris.amount,
       qris.createdAt,
-      null,
+      merchantId || null,
       userAgent,
-      qris.trxId || qrisId
+      qris.trxId || qrisId,
+      customHeaders
     );
     if (matched) {
       qris.status = 'PAID';

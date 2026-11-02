@@ -72,7 +72,11 @@ export function QrisGenerator({ onPaymentSuccess }: { onPaymentSuccess?: () => v
       // BUKAN trx_id. Versi sebelumnya memakai trx_id sehingga polling selalu
       // menerima NOT_FOUND dan status pembayaran di dashboard tidak pernah
       // berubah menjadi PAID.
-      const checkId = typeof res.data === 'object' ? res.data.qris_id || '' : '';
+      const checkId =
+        (typeof res.data === 'object' ? res.data.qris_id : '') ||
+        res.qris_id ||
+        res.trx_id ||
+        generatedTrxId;
       pollIntervalRef.current = setInterval(async () => {
         try {
           const statusRes = await GatewayService.getQrStatus(checkId);

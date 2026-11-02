@@ -2,6 +2,13 @@ import { NextRequest } from 'next/server';
 import { validateApiKey, handleCorsOptions, jsonResponse } from '@/lib/auth';
 import { verifyPayment } from '@/lib/gopay-api';
 import { logActivity } from '@/lib/gateway-state';
+import { getAuthenticatedUser } from '@/lib/auth-session';
+import {
+  getMerchantSessionFromDb,
+  getActiveSessionForUser,
+  recordTransactionToDb,
+} from '@/lib/merchant-session-db';
+import { buildHeadersFromSession } from '@/lib/session-service';
 
 export const dynamic = 'force-dynamic';
 
@@ -43,17 +50,60 @@ async function handleCheckPayment(req: NextRequest) {
   }
 
   try {
-    const merchantId = req.headers.get('x-gopay-merchant-id') || null;
+    let merchantId = req.headers.get('x-gopay-merchant-id') || null;
     const userAgent = req.headers.get('user-agent');
+    let customHeaders: Record<string, string> | null = null;
+
+    const authUser = await getAuthenticatedUser(req).catch(() => null);
+    const targetUserId = authUser?.id || auth.userId;
+
+    if (authUser?.id && authUser.unlockedDek) {
+      try {
+        const dbSession = await getMerchantSessionFromDb(authUser.id, authUser.unlockedDek);
+        if (dbSession && dbSession.access_token) {
+          customHeaders = buildHeadersFromSession(dbSession, userAgent);
+          if (dbSession.merchant_id && !merchantId) {
+            merchantId = String(dbSession.merchant_id);
+          }
+        }
+      } catch {
+        // ignore
+      }
+    } else if (targetUserId) {
+      const cached = getActiveSessionForUser(targetUserId);
+      if (cached) {
+        customHeaders = {
+          ...cached.headers,
+          ...(userAgent ? { 'User-Agent': userAgent } : {}),
+        };
+        if (cached.merchantId && !merchantId) {
+          merchantId = cached.merchantId;
+        }
+      }
+    }
+
     const matchedTransaction = await verifyPayment(
       parsedAmount,
       startTime,
       merchantId,
       userAgent,
-      scopeId
+      scopeId,
+      customHeaders
     );
 
     if (matchedTransaction) {
+      if (targetUserId) {
+        await recordTransactionToDb(targetUserId, {
+          gojekTransactionId: matchedTransaction.id,
+          orderId: matchedTransaction.order_id,
+          nominal: matchedTransaction.amount,
+          metodeBayar: matchedTransaction.payment_type,
+          issuer: matchedTransaction.payer_issuer,
+          status: 'success',
+          waktuTransaksi: matchedTransaction.transaction_time ? new Date(matchedTransaction.transaction_time) : new Date(),
+        }).catch(() => null);
+      }
+
       logActivity(
         'SUCCESS',
         `Pembayaran terverifikasi lunas untuk nominal Rp ${parsedAmount}`,

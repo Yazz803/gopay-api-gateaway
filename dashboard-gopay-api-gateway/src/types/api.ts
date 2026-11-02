@@ -17,6 +17,7 @@ export interface CreateQrisRequest {
 export interface CreateQrisResponse {
   success: boolean;
   status?: string;
+  qris_id?: string;
   data:
     | string
     | {
