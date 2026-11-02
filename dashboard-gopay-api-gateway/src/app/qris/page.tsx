@@ -10,6 +10,7 @@ import { GopayConnectModal } from '@/components/common/GopayConnectModal';
 import { StaticQrisUploader } from '@/components/qris/StaticQrisUploader';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
+import { SkeletonLoading } from '@/components/ui/SkeletonLoading';
 
 function QrisView() {
   const { tokenStatus, isRefreshing, refreshData } = useDashboard();
@@ -39,7 +40,9 @@ function QrisView() {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
       <div className="lg:col-span-2 space-y-5">
-        {!isSessionValid ? (
+        {!tokenStatus && isRefreshing ? (
+          <SkeletonLoading.Card className="min-h-[280px]" />
+        ) : !isSessionValid ? (
           <Card className="border border-white/65 dark:border-white/10 shadow-xs">
             <CardContent className="p-8 sm:p-10 flex flex-col items-center text-center">
               <div className="flex h-16 w-16 items-center justify-center rounded-[14px] bg-[#B85D43]/15 text-[#B85D43] dark:bg-[#D07258]/20 dark:text-[#F0C8BE] mb-5">
@@ -104,6 +107,8 @@ function QrisView() {
               </div>
             </CardContent>
           </Card>
+        ) : hasStaticQris === null ? (
+          <SkeletonLoading.Card className="min-h-[220px]" />
         ) : !hasStaticQris ? (
           /* Step 2: Wajib Upload QRIS Statis */
           <StaticQrisUploader

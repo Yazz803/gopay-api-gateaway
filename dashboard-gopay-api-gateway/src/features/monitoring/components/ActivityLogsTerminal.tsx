@@ -4,6 +4,7 @@ import React, { useState, useMemo } from 'react';
 import { FiRefreshCw, FiTerminal } from 'react-icons/fi';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
+import { SkeletonLoading } from '@/components/ui/SkeletonLoading';
 import { formatDate } from '@/lib/utils';
 import type { ActivityLogItem, LogType } from '@/types';
 
@@ -124,9 +125,26 @@ export function ActivityLogsTerminal({
       <CardContent>
         {/* Terminal Window */}
         <div className="rounded-[12px] border border-white/10 bg-[#1A1D24] p-4 font-mono text-xs shadow-inner min-h-[300px] max-h-[460px] overflow-y-auto space-y-2">
-          {filteredLogs.length === 0 ? (
+          {isLoading && logs.length === 0 ? (
+            <div className="space-y-3 py-1">
+              {Array.from({ length: 5 }).map((_, idx) => (
+                <div
+                  key={idx}
+                  className="flex flex-col sm:flex-row sm:items-center gap-2 py-1.5 border-b border-white/5 animate-pulse"
+                >
+                  <div className="h-3 w-28 rounded-[4px] bg-white/10 shrink-0" />
+                  <div className="h-4 w-16 rounded-[4px] bg-white/15 shrink-0" />
+                  <div
+                    className={`h-3 rounded-[4px] bg-white/10 flex-1 ${
+                      idx % 2 === 0 ? 'w-3/4' : 'w-1/2'
+                    }`}
+                  />
+                </div>
+              ))}
+            </div>
+          ) : filteredLogs.length === 0 ? (
             <div className="flex h-40 items-center justify-center text-[#7A7670] dark:text-[#9E9A92]">
-              {isLoading ? 'Memuat riwayat aktivitas...' : 'Belum ada catatan aktivitas untuk filter ini'}
+              Belum ada catatan aktivitas untuk filter ini
             </div>
           ) : (
             filteredLogs.map((log) => (

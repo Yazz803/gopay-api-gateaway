@@ -14,6 +14,7 @@ import { Header } from './Header';
 import { Sidebar } from './Sidebar';
 import { PinUnlockModal } from '@/components/auth/PinUnlockModal';
 import { formatRupiah } from '@/lib/utils';
+import { SkeletonLoading } from '@/components/ui/SkeletonLoading';
 import { GatewayService } from '@/services/gateway.service';
 import type {
   HealthResponse,
@@ -29,6 +30,7 @@ export interface DashboardContextType {
   transactionsData: TransactionsResponse | null;
   logs: ActivityLogItem[];
   isRefreshing: boolean;
+  isInitialLoading: boolean;
   refreshData: () => Promise<void>;
   totalTransactionAmount: number;
   totalTransactionCount: number;
@@ -166,6 +168,8 @@ export function DashboardShell({ children }: DashboardShellProps) {
     return 'Riwayat Pembayaran Masuk';
   }, [pathname]);
 
+  const isInitialLoading = healthData === null && transactionsData === null && tokenStatus === null;
+
   const contextValue: DashboardContextType = {
     healthData,
     isHealthy,
@@ -173,6 +177,7 @@ export function DashboardShell({ children }: DashboardShellProps) {
     transactionsData,
     logs,
     isRefreshing,
+    isInitialLoading,
     refreshData: loadData,
     totalTransactionAmount,
     totalTransactionCount,
@@ -245,9 +250,13 @@ export function DashboardShell({ children }: DashboardShellProps) {
                 <span className="text-[11px] font-semibold tracking-wider uppercase text-[#7A7670] dark:text-[#9E9A92]">
                   Total Uang Diterima
                 </span>
-                <div className="mt-2 text-xl font-bold text-[#1E2229] dark:text-[#F3EFEA] tabular-nums truncate">
-                  {formatRupiah(totalTransactionAmount)}
-                </div>
+                {isInitialLoading ? (
+                  <SkeletonLoading className="h-7 w-32 my-1 rounded-[6px]" />
+                ) : (
+                  <div className="mt-2 text-xl font-bold text-[#1E2229] dark:text-[#F3EFEA] tabular-nums truncate">
+                    {formatRupiah(totalTransactionAmount)}
+                  </div>
+                )}
                 <div className="mt-2 text-[11px] text-[#7A7670] dark:text-[#9E9A92] flex items-center justify-between">
                   <span className="text-[#4E6E58] dark:text-[#8EB89A] font-semibold">Real-time</span>
                   <span>25 mutasi terakhir</span>
@@ -259,9 +268,13 @@ export function DashboardShell({ children }: DashboardShellProps) {
                 <span className="text-[11px] font-semibold tracking-wider uppercase text-[#7A7670] dark:text-[#9E9A92]">
                   Jumlah Pembayaran
                 </span>
-                <div className="mt-2 text-xl font-bold text-[#1E2229] dark:text-[#F3EFEA] tabular-nums">
-                  {totalTransactionCount}
-                </div>
+                {isInitialLoading ? (
+                  <SkeletonLoading className="h-7 w-20 my-1 rounded-[6px]" />
+                ) : (
+                  <div className="mt-2 text-xl font-bold text-[#1E2229] dark:text-[#F3EFEA] tabular-nums">
+                    {totalTransactionCount}
+                  </div>
+                )}
                 <div className="mt-2 text-[11px] text-[#7A7670] dark:text-[#9E9A92]">
                   Transaksi tercatat
                 </div>
@@ -272,9 +285,13 @@ export function DashboardShell({ children }: DashboardShellProps) {
                 <span className="text-[11px] font-semibold tracking-wider uppercase text-[#7A7670] dark:text-[#9E9A92]">
                   QRIS Terbayar
                 </span>
-                <div className="mt-2 text-xl font-bold text-[#4E6E58] dark:text-[#8EB89A] tabular-nums">
-                  {healthData?.gateway?.claimed_transactions ?? 0}
-                </div>
+                {isInitialLoading ? (
+                  <SkeletonLoading className="h-7 w-16 my-1 rounded-[6px]" />
+                ) : (
+                  <div className="mt-2 text-xl font-bold text-[#4E6E58] dark:text-[#8EB89A] tabular-nums">
+                    {healthData?.gateway?.claimed_transactions ?? 0}
+                  </div>
+                )}
                 <div className="mt-2 text-[11px] text-[#7A7670] dark:text-[#9E9A92]">
                   Masuk ke saldo GoPay
                 </div>
@@ -285,9 +302,13 @@ export function DashboardShell({ children }: DashboardShellProps) {
                 <span className="text-[11px] font-semibold tracking-wider uppercase text-[#7A7670] dark:text-[#9E9A92]">
                   Menunggu Pembayaran
                 </span>
-                <div className="mt-2 text-xl font-bold text-[#1E2229] dark:text-[#F3EFEA] tabular-nums">
-                  {healthData?.gateway?.active_qris ?? 0}
-                </div>
+                {isInitialLoading ? (
+                  <SkeletonLoading className="h-7 w-16 my-1 rounded-[6px]" />
+                ) : (
+                  <div className="mt-2 text-xl font-bold text-[#1E2229] dark:text-[#F3EFEA] tabular-nums">
+                    {healthData?.gateway?.active_qris ?? 0}
+                  </div>
+                )}
                 <div className="mt-2 text-[11px] text-[#7A7670] dark:text-[#9E9A92]">
                   Kode QR aktif
                 </div>
@@ -298,16 +319,20 @@ export function DashboardShell({ children }: DashboardShellProps) {
                 <span className="text-[11px] font-semibold tracking-wider uppercase text-[#7A7670] dark:text-[#9E9A92]">
                   Akun GoPay
                 </span>
-                <div className="mt-2 flex items-center gap-2">
-                  {isSessionValid ? (
-                    <RiShieldCheckLine className="h-4 w-4 text-[#4E6E58] dark:text-[#8EB89A] shrink-0" />
-                  ) : (
-                    <RiAlertLine className="h-4 w-4 text-[#B85D43] dark:text-[#D07258] shrink-0" />
-                  )}
-                  <span className="text-base font-bold text-[#1E2229] dark:text-[#F3EFEA] truncate">
-                    {isSessionValid ? 'AKTIF NORMAL' : 'PERLU MASUK'}
-                  </span>
-                </div>
+                {isInitialLoading ? (
+                  <SkeletonLoading className="h-6 w-32 my-1 rounded-[6px]" />
+                ) : (
+                  <div className="mt-2 flex items-center gap-2">
+                    {isSessionValid ? (
+                      <RiShieldCheckLine className="h-4 w-4 text-[#4E6E58] dark:text-[#8EB89A] shrink-0" />
+                    ) : (
+                      <RiAlertLine className="h-4 w-4 text-[#B85D43] dark:text-[#D07258] shrink-0" />
+                    )}
+                    <span className="text-base font-bold text-[#1E2229] dark:text-[#F3EFEA] truncate">
+                      {isSessionValid ? 'AKTIF NORMAL' : 'PERLU MASUK'}
+                    </span>
+                  </div>
+                )}
                 <div className="mt-2 text-[11px] text-[#7A7670] dark:text-[#9E9A92] flex items-center justify-between">
                   <span>Aktif: {Math.floor((healthData?.uptime || 0) / 60)} mnt</span>
                   <span className="text-[#4E6E58] dark:text-[#8EB89A] font-semibold">Tersambung</span>

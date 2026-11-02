@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { FiRefreshCw, FiMenu, FiUser, FiLock } from 'react-icons/fi';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
+import { SkeletonLoading } from '@/components/ui/SkeletonLoading';
 import { ThemeToggle } from './ThemeToggle';
 
 export interface HeaderProps {
@@ -25,6 +26,7 @@ export function Header({
 }: HeaderProps) {
   const router = useRouter();
   const [currentUser, setCurrentUser] = useState<{ username: string; name?: string; isVaultUnlocked?: boolean } | null>(null);
+  const [isLoadingUser, setIsLoadingUser] = useState(true);
 
   useEffect(() => {
     // Check authenticated user
@@ -35,7 +37,10 @@ export function Header({
           setCurrentUser(data.user);
         }
       })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => {
+        setIsLoadingUser(false);
+      });
   }, []);
 
   const handleLogout = async () => {
@@ -89,7 +94,9 @@ export function Header({
           </Button>
         )}
 
-        {currentUser ? (
+        {isLoadingUser ? (
+          <SkeletonLoading className="h-7 w-24 rounded-full bg-white/10" />
+        ) : currentUser ? (
           <div className="flex items-center gap-1.5 pl-1">
             <Link
               href="/profile"

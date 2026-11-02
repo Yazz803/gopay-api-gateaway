@@ -7,6 +7,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/com
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { SkeletonLoading } from '@/components/ui/SkeletonLoading';
 import { formatRupiah, formatDate } from '@/lib/utils';
 import type { TransactionsResponse } from '@/types';
 
@@ -99,19 +100,27 @@ export function TransactionFeed({
           </div>
 
           <div className="flex items-center gap-3 text-xs text-[#7A7670] dark:text-[#9E9A92]">
-            <span>
-              Menampilkan <strong className="text-[#1E2229] dark:text-[#F3EFEA] tabular-nums">{filteredTransactions.length}</strong> pembayaran
-            </span>
-            <span>•</span>
-            <span>
-              Total: <strong className="text-[#4E6E58] dark:text-[#8EB89A] font-bold tabular-nums">{formatRupiah(totalCalculated)}</strong>
-            </span>
+            {isLoading && !transactionsData ? (
+              <SkeletonLoading className="h-4 w-48 rounded-[4px]" />
+            ) : (
+              <>
+                <span>
+                  Menampilkan <strong className="text-[#1E2229] dark:text-[#F3EFEA] tabular-nums">{filteredTransactions.length}</strong> pembayaran
+                </span>
+                <span>•</span>
+                <span>
+                  Total: <strong className="text-[#4E6E58] dark:text-[#8EB89A] font-bold tabular-nums">{formatRupiah(totalCalculated)}</strong>
+                </span>
+              </>
+            )}
           </div>
         </div>
       </CardHeader>
 
       <CardContent>
-        {filteredTransactions.length === 0 ? (
+        {isLoading && !transactionsData ? (
+          <SkeletonLoading.Table rows={5} columns={5} />
+        ) : filteredTransactions.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12 text-center">
             <div className="flex h-12 w-12 items-center justify-center rounded-[12px] bg-[#E8E2D9] text-[#7A7670] dark:bg-[#272C37] dark:text-[#9E9A92] mb-3">
               <FiFileText className="h-6 w-6" />

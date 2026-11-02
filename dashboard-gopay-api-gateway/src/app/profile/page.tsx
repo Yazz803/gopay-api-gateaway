@@ -25,6 +25,7 @@ import { DashboardShell, useDashboard } from '@/components/layout/DashboardShell
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
+import { SkeletonLoading } from '@/components/ui/SkeletonLoading';
 import { GopayConnectModal } from '@/components/common/GopayConnectModal';
 import { StaticQrisUploader } from '@/components/qris/StaticQrisUploader';
 
@@ -129,13 +130,17 @@ function ProfileContent() {
         </div>
 
         <div className="flex items-center gap-2">
-          <Badge
-            variant={profile?.isVaultUnlocked ? 'success' : 'warning'}
-            size="md"
-            className="font-semibold"
-          >
-            {profile?.isVaultUnlocked ? 'BRANKAS DATA TERBUKA' : 'BRANKAS TERKUNCI'}
-          </Badge>
+          {!profile ? (
+            <SkeletonLoading.Badge className="h-6 w-36" />
+          ) : (
+            <Badge
+              variant={profile?.isVaultUnlocked ? 'success' : 'warning'}
+              size="md"
+              className="font-semibold"
+            >
+              {profile?.isVaultUnlocked ? 'BRANKAS DATA TERBUKA' : 'BRANKAS TERKUNCI'}
+            </Badge>
+          )}
         </div>
       </div>
 
@@ -160,18 +165,26 @@ function ProfileContent() {
                   <span className="text-[11px] font-semibold text-[#7A7670] dark:text-[#9E9A92] block mb-1">
                     Nama Lengkap
                   </span>
-                  <p className="text-sm font-bold text-[#1E2229] dark:text-[#F3EFEA] truncate">
-                    {profile?.name || '-'}
-                  </p>
+                  {!profile ? (
+                    <SkeletonLoading className="h-5 w-32 rounded-[4px] mt-0.5" />
+                  ) : (
+                    <p className="text-sm font-bold text-[#1E2229] dark:text-[#F3EFEA] truncate">
+                      {profile?.name || '-'}
+                    </p>
+                  )}
                 </div>
 
                 <div className="p-3.5 rounded-[10px] bg-black/[0.02] dark:bg-white/[0.03] border border-black/[0.04] dark:border-white/[0.05]">
                   <span className="text-[11px] font-semibold text-[#7A7670] dark:text-[#9E9A92] block mb-1">
                     Username
                   </span>
-                  <p className="text-sm font-bold text-[#1E2229] dark:text-[#F3EFEA] truncate">
-                    @{profile?.username || '-'}
-                  </p>
+                  {!profile ? (
+                    <SkeletonLoading className="h-5 w-24 rounded-[4px] mt-0.5" />
+                  ) : (
+                    <p className="text-sm font-bold text-[#1E2229] dark:text-[#F3EFEA] truncate">
+                      @{profile?.username || '-'}
+                    </p>
+                  )}
                 </div>
               </div>
 
@@ -181,9 +194,13 @@ function ProfileContent() {
                     <RiMailLine className="h-3.5 w-3.5" />
                     <span>Alamat Email</span>
                   </span>
-                  <span className="text-xs font-semibold text-[#1E2229] dark:text-[#F3EFEA]">
-                    {profile?.email || '-'}
-                  </span>
+                  {!profile ? (
+                    <SkeletonLoading className="h-4 w-36 rounded-[4px]" />
+                  ) : (
+                    <span className="text-xs font-semibold text-[#1E2229] dark:text-[#F3EFEA]">
+                      {profile?.email || '-'}
+                    </span>
+                  )}
                 </div>
 
                 <div className="flex items-center justify-between border-t border-black/[0.04] dark:border-white/[0.05] pt-2.5">
@@ -191,9 +208,13 @@ function ProfileContent() {
                     <RiPhoneLine className="h-3.5 w-3.5" />
                     <span>Nomor Telepon</span>
                   </span>
-                  <span className="text-xs font-semibold text-[#1E2229] dark:text-[#F3EFEA] tabular-nums">
-                    {profile?.phoneNumber || '-'}
-                  </span>
+                  {!profile ? (
+                    <SkeletonLoading className="h-4 w-28 rounded-[4px]" />
+                  ) : (
+                    <span className="text-xs font-semibold text-[#1E2229] dark:text-[#F3EFEA] tabular-nums">
+                      {profile?.phoneNumber || '-'}
+                    </span>
+                  )}
                 </div>
 
                 {profile?.createdAt && (
@@ -244,41 +265,45 @@ function ProfileContent() {
                 </div>
               )}
 
-              <div className="flex items-center gap-2 p-2.5 rounded-[10px] bg-[#1A1D24] text-[#EAE6DF] font-mono text-xs border border-white/10">
-                <span className="flex-1 truncate tracking-wider">
-                  {showApiKey
-                    ? profile?.apiKey || 'Belum dibuat'
-                    : profile?.apiKey
-                    ? profile.apiKey.slice(0, 10) + '••••••••••••••••' + profile.apiKey.slice(-4)
-                    : '••••••••••••••••••••'}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => setShowApiKey((prev) => !prev)}
-                  className="p-1 text-[#9B9FA7] hover:text-[#EAE6DF] transition-colors cursor-pointer"
-                  title={showApiKey ? 'Sembunyikan Kunci' : 'Tampilkan Kunci'}
-                >
-                  {showApiKey ? <FiEyeOff className="h-3.5 w-3.5" /> : <FiEye className="h-3.5 w-3.5" />}
-                </button>
-                <button
-                  type="button"
-                  onClick={handleCopyKey}
-                  className="inline-flex items-center gap-1 px-2 py-1 rounded bg-[#383E4A] hover:bg-[#4E5666] text-[#EAE6DF] transition-colors cursor-pointer text-[11px]"
-                  title="Salin API Key ke Clipboard"
-                >
-                  {copiedKey ? (
-                    <>
-                      <FiCheck className="h-3 w-3 text-[#8EB89A]" />
-                      <span className="text-[#8EB89A]">Tersalin</span>
-                    </>
-                  ) : (
-                    <>
-                      <FiCopy className="h-3 w-3" />
-                      <span>Salin</span>
-                    </>
-                  )}
-                </button>
-              </div>
+              {!profile ? (
+                <SkeletonLoading className="h-10 w-full rounded-[10px]" />
+              ) : (
+                <div className="flex items-center gap-2 p-2.5 rounded-[10px] bg-[#1A1D24] text-[#EAE6DF] font-mono text-xs border border-white/10">
+                  <span className="flex-1 truncate tracking-wider">
+                    {showApiKey
+                      ? profile?.apiKey || 'Belum dibuat'
+                      : profile?.apiKey
+                      ? profile.apiKey.slice(0, 10) + '••••••••••••••••' + profile.apiKey.slice(-4)
+                      : '••••••••••••••••••••'}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setShowApiKey((prev) => !prev)}
+                    className="p-1 text-[#9B9FA7] hover:text-[#EAE6DF] transition-colors cursor-pointer"
+                    title={showApiKey ? 'Sembunyikan Kunci' : 'Tampilkan Kunci'}
+                  >
+                    {showApiKey ? <FiEyeOff className="h-3.5 w-3.5" /> : <FiEye className="h-3.5 w-3.5" />}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleCopyKey}
+                    className="inline-flex items-center gap-1 px-2 py-1 rounded bg-[#383E4A] hover:bg-[#4E5666] text-[#EAE6DF] transition-colors cursor-pointer text-[11px]"
+                    title="Salin API Key ke Clipboard"
+                  >
+                    {copiedKey ? (
+                      <>
+                        <FiCheck className="h-3 w-3 text-[#8EB89A]" />
+                        <span className="text-[#8EB89A]">Tersalin</span>
+                      </>
+                    ) : (
+                      <>
+                        <FiCopy className="h-3 w-3" />
+                        <span>Salin</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              )}
 
               <p className="text-[11px] text-[#7A7670] dark:text-[#9E9A92] leading-relaxed">
                 Kunci ini digunakan untuk mengirim request dari aplikasi kasir, sistem POS, atau website Anda melalui header{' '}

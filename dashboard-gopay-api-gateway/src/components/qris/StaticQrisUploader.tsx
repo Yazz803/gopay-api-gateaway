@@ -17,6 +17,7 @@ import {
 import { Card, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
+import { SkeletonLoading } from '@/components/ui/SkeletonLoading';
 
 export interface StaticQrisData {
   raw: string;
@@ -38,6 +39,7 @@ export function StaticQrisUploader({
   compact = false,
 }: StaticQrisUploaderProps) {
   const [qrisData, setQrisData] = useState<StaticQrisData | null>(null);
+  const [isLoadingInitial, setIsLoadingInitial] = useState<boolean>(true);
   const [isUploading, setIsUploading] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -57,7 +59,12 @@ export function StaticQrisUploader({
           onQrisConfigured?.(data.data);
         }
       })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => {
+        if (isMounted) {
+          setIsLoadingInitial(false);
+        }
+      });
 
     return () => {
       isMounted = false;
@@ -141,6 +148,25 @@ export function StaticQrisUploader({
       // ignore
     }
   };
+
+  // If still loading initial state from API
+  if (isLoadingInitial) {
+    if (compact) {
+      return (
+        <div className="rounded-[12px] bg-[#E8E2D9]/40 dark:bg-[#272C37]/40 border border-[#D9D2C7] dark:border-white/10 p-3.5 flex items-center justify-between gap-3 animate-pulse select-none">
+          <div className="flex items-center gap-3">
+            <SkeletonLoading className="h-10 w-10 rounded-[10px]" />
+            <div className="space-y-1.5">
+              <SkeletonLoading className="h-3.5 w-32 rounded-[4px]" />
+              <SkeletonLoading className="h-2.5 w-20 rounded-[4px]" />
+            </div>
+          </div>
+          <SkeletonLoading className="h-7 w-20 rounded-[6px]" />
+        </div>
+      );
+    }
+    return <SkeletonLoading.Card className="min-h-[160px]" />;
+  }
 
   // If already configured and compact mode
   if (qrisData && compact) {
