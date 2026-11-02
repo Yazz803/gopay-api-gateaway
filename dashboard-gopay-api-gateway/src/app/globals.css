@@ -3,29 +3,133 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 :root {
-  --background: #f8fafc;
-  --foreground: #0f172a;
-  --card: #ffffff;
-  --card-foreground: #0f172a;
-  --border: #e2e8f0;
-  --muted: #64748b;
-  --accent: #00aa13; /* GoPay / Gojek Green */
-  --accent-hover: #008f10;
+  /* Surfaces & Backgrounds (The Tactile Ledger) */
+  --bg-shell: #2B303A;
+  --bg-shell-hover: #383E4A;
+  --bg-canvas: #DED8CE;
+  --bg-card: #F3EFEA;
+  --bg-card-subtle: #E8E2D9;
+
+  /* Typography & Text Tokens */
+  --text-primary: #1E2229;
+  --text-secondary: #7A7670;
+  --text-on-dark: #EAE6DF;
+  --text-on-dark-muted: #9B9FA7;
+
+  /* Data Visualization (Charts) */
+  --chart-highlight: #2B303A;
+  --chart-secondary: #8E8D8A;
+  --chart-tertiary: #C6BEB5;
+  --chart-light: #D9D2C7;
+
+  /* Semantic Status */
+  --status-positive: #4E6E58;
+  --status-negative: #B85D43;
+
+  /* Shapes & Effects */
+  --radius-card: 14px;
+  --radius-pill: 9999px;
+  --radius-bar: 6px;
+  --shadow-card: 0 2px 8px -2px rgba(43, 48, 58, 0.05);
+  --border-card: 1px solid rgba(255, 255, 255, 0.65);
+
+  /* Next.js standard bridge variables */
+  --background: var(--bg-canvas);
+  --foreground: var(--text-primary);
+  --card: var(--bg-card);
+  --card-foreground: var(--text-primary);
+  --border: #D9D2C7;
+  --muted: var(--text-secondary);
+  --accent: var(--bg-shell);
+  --accent-hover: var(--bg-shell-hover);
 }
 
 .dark {
-  --background: #090d16;
-  --foreground: #f8fafc;
-  --card: #0f172a;
-  --card-foreground: #f8fafc;
-  --border: #1e293b;
-  --muted: #94a3b8;
-  --accent: #00c817;
-  --accent-hover: #00aa13;
+  /* Harmonized Dark Warm Charcoal Palette */
+  --bg-shell: #1E2229;
+  --bg-shell-hover: #292E38;
+  --bg-canvas: #14171D;
+  --bg-card: #1D212A;
+  --bg-card-subtle: #272C37;
+
+  --text-primary: #F3EFEA;
+  --text-secondary: #9E9A92;
+  --text-on-dark: #EAE6DF;
+  --text-on-dark-muted: #7E838D;
+
+  --chart-highlight: #EAE6DF;
+  --chart-secondary: #8E8D8A;
+  --chart-tertiary: #4A5160;
+  --chart-light: #2D333F;
+
+  --status-positive: #658E72;
+  --status-negative: #D07258;
+
+  --shadow-card: 0 2px 8px -2px rgba(0, 0, 0, 0.35);
+  --border-card: 1px solid rgba(255, 255, 255, 0.08);
+
+  --background: var(--bg-canvas);
+  --foreground: var(--text-primary);
+  --card: var(--bg-card);
+  --card-foreground: var(--text-primary);
+  --border: #2D333F;
+  --muted: var(--text-secondary);
+  --accent: #EAE6DF;
+  --accent-hover: #FFFFFF;
 }
 
+/* Global Typography & Tabular Numerics */
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background-color: var(--bg-canvas);
+  color: var(--text-primary);
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.tabular-nums,
+.tabular-numbers {
+  font-variant-numeric: tabular-nums;
+}
+
+/* The Ghost Highlight Rule */
+.bento-card {
+  background-color: var(--bg-card);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+  border: var(--border-card);
+}
+
+/* Ergonomic Tactile Scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #C6BEB5;
+  border-radius: 9999px;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: #383E4A;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #8E8D8A;
+}
+
+/* Text Selection Styling */
+::selection {
+  background: rgba(43, 48, 58, 0.18);
+  color: inherit;
+}
+
+.dark ::selection {
+  background: rgba(234, 230, 223, 0.22);
+  color: inherit;
 }

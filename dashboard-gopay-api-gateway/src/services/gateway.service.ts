@@ -45,4 +45,18 @@ export const GatewayService = {
   async getQrStatus(id: string): Promise<QrStatusResponse> {
     return apiFetch<QrStatusResponse>(`/api/qr-status/${encodeURIComponent(id)}`);
   },
+
+  async requestGopayOtp(phone: string): Promise<{ success: boolean; message: string; error?: string }> {
+    return apiFetch<{ success: boolean; message: string; error?: string }>('/api/connect-gopay/request-otp', {
+      method: 'POST',
+      body: JSON.stringify({ phone }),
+    });
+  },
+
+  async submitGopayOtp(otp: string): Promise<{ success: boolean; message: string; error?: string }> {
+    return apiFetch<{ success: boolean; message: string; error?: string }>('/api/connect-gopay/submit-otp', {
+      method: 'POST',
+      body: JSON.stringify({ otp }),
+    });
+  },
 };

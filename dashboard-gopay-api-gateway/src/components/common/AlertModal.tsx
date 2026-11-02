@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useCallback } from 'react';
+import { FiCheckCircle, FiAlertTriangle, FiXCircle, FiInfo } from 'react-icons/fi';
 import { Button } from '@/components/ui/Button';
 
 export interface AlertModalProps {
@@ -50,41 +51,23 @@ export function AlertModal({
 
   const icons = {
     success: (
-      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400">
-        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
-        </svg>
+      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px] bg-[#4E6E58]/15 text-[#4E6E58] dark:bg-[#658E72]/20 dark:text-[#8EB89A]">
+        <FiCheckCircle className="h-5 w-5" />
       </div>
     ),
     warning: (
-      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-600 dark:bg-amber-950/60 dark:text-amber-400">
-        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth="2"
-            d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
-          />
-        </svg>
+      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px] bg-[#D99B26]/15 text-[#A36A18] dark:bg-[#D99B26]/20 dark:text-[#F3C878]">
+        <FiAlertTriangle className="h-5 w-5" />
       </div>
     ),
     danger: (
-      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-rose-100 text-rose-600 dark:bg-rose-950/60 dark:text-rose-400">
-        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-        </svg>
+      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px] bg-[#B85D43]/15 text-[#B85D43] dark:bg-[#D07258]/20 dark:text-[#F0C8BE]">
+        <FiXCircle className="h-5 w-5" />
       </div>
     ),
     info: (
-      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-sky-100 text-sky-600 dark:bg-sky-950/60 dark:text-sky-400">
-        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth="2"
-            d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-          />
-        </svg>
+      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px] bg-[#383E4A]/15 text-[#2B303A] dark:bg-[#383E4A]/30 dark:text-[#D1D6E1]">
+        <FiInfo className="h-5 w-5" />
       </div>
     ),
   };
@@ -98,17 +81,23 @@ export function AlertModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#2B303A]/60 backdrop-blur-xs animate-in fade-in duration-150"
+      onClick={() => {
+        if (!isLoading) onClose();
+      }}
+    >
       <div
-        className="relative w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl dark:bg-slate-900 border border-slate-200 dark:border-slate-800 animate-in zoom-in-95 duration-150"
+        className="relative w-full max-w-md rounded-[14px] bg-[#F3EFEA] p-6 shadow-[0_10px_25px_-5px_rgba(43,48,58,0.15)] dark:bg-[#1D212A] border border-white/65 dark:border-white/10 animate-in zoom-in-95 duration-150"
         role="dialog"
         aria-modal="true"
+        onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-start gap-4">
           {icons[type]}
           <div className="flex-1">
-            <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100">{title}</h3>
-            <p className="mt-2 text-sm text-slate-600 dark:text-slate-400 leading-relaxed whitespace-pre-wrap">
+            <h3 className="text-sm font-semibold text-[#1E2229] dark:text-[#F3EFEA]">{title}</h3>
+            <p className="mt-2 text-xs text-[#7A7670] dark:text-[#9E9A92] leading-relaxed whitespace-pre-wrap">
               {description}
             </p>
             {children}

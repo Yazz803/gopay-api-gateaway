@@ -1,133 +1,126 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { ThemeToggle } from './ThemeToggle';
-import { Badge } from '@/components/ui/Badge';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { FiRefreshCw, FiMenu, FiUser, FiLock } from 'react-icons/fi';
 import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
-import { AlertModal } from '@/components/common/AlertModal';
+import { Badge } from '@/components/ui/Badge';
+import { ThemeToggle } from './ThemeToggle';
 
 export interface HeaderProps {
   isHealthy: boolean;
-  onRefreshAll?: () => void;
   isRefreshing?: boolean;
+  onRefreshAll?: () => void;
+  onToggleMobileSidebar?: () => void;
+  activeTabTitle?: string;
 }
 
-export function Header({ isHealthy, onRefreshAll, isRefreshing = false }: HeaderProps) {
-  const [apiKeyModalOpen, setApiKeyModalOpen] = useState(false);
-  const [apiKeyInput, setApiKeyInput] = useState('');
-  const [currentKeyMasked, setCurrentKeyMasked] = useState<string>('Tidak disetel');
+export function Header({
+  isHealthy,
+  isRefreshing = false,
+  onRefreshAll,
+  onToggleMobileSidebar,
+  activeTabTitle = 'Riwayat Transaksi',
+}: HeaderProps) {
+  const router = useRouter();
+  const [currentUser, setCurrentUser] = useState<{ username: string; name?: string; isVaultUnlocked?: boolean } | null>(null);
 
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const stored = localStorage.getItem('gopay_api_key');
-      if (stored) {
-        queueMicrotask(() => {
-          setApiKeyInput(stored);
-          setCurrentKeyMasked(stored.slice(0, 4) + '••••' + stored.slice(-3));
-        });
-      }
-    }
+    // Check authenticated user
+    fetch('/api/auth/me')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success && data.user) {
+          setCurrentUser(data.user);
+        }
+      })
+      .catch(() => {});
   }, []);
 
-  const handleSaveApiKey = () => {
-    if (typeof window !== 'undefined') {
-      if (apiKeyInput.trim()) {
-        localStorage.setItem('gopay_api_key', apiKeyInput.trim());
-        setCurrentKeyMasked(apiKeyInput.trim().slice(0, 4) + '••••' + apiKeyInput.trim().slice(-3));
-      } else {
-        localStorage.removeItem('gopay_api_key');
-        setCurrentKeyMasked('Tidak disetel');
-      }
+  const handleLogout = async () => {
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' });
+    } catch {
+      // ignore
     }
-    setApiKeyModalOpen(false);
+    router.push('/login');
   };
 
   return (
-    <header className="sticky top-0 z-40 w-full border-b border-slate-200 bg-white/80 backdrop-blur-md dark:border-slate-800 dark:bg-slate-950/80 transition-colors">
-      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#00aa13] text-white shadow-md shadow-[#00aa13]/20">
-            {/* GoPay / Wallet Icon */}
-            <svg className="h-6 w-6" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M21 7.28V5c0-1.1-.9-2-2-2H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2v-2.28c.59-.35 1-.99 1-1.72V9c0-.73-.41-1.37-1-1.72zM20 9v6h-7V9h7zM5 19V5h14v2h-6c-1.1 0-2 .9-2 2v6c0 1.1.9 2 2 2h6v2H5z" />
-              <circle cx="16" cy="12" r="1.5" />
-            </svg>
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-base font-bold tracking-tight text-slate-900 dark:text-slate-100">
-                GoPay API Gateway
-              </h1>
-              <Badge variant="info" size="sm">Next.js 16</Badge>
-            </div>
-            <p className="text-xs text-slate-500 dark:text-slate-400">
-              Live QRIS Dynamic & Transaction Monitor
-            </p>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2 sm:gap-3">
-          <div className="hidden sm:flex items-center gap-2">
-            <span className="text-xs text-slate-500 dark:text-slate-400">Gateway Status:</span>
-            <Badge variant={isHealthy ? 'success' : 'danger'} size="sm">
-              <span className={isHealthy ? 'mr-1.5 h-1.5 w-1.5 rounded-full bg-emerald-500' : 'mr-1.5 h-1.5 w-1.5 rounded-full bg-rose-500'} />
-              {isHealthy ? 'ONLINE' : 'OFFLINE'}
-            </Badge>
-          </div>
-
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setApiKeyModalOpen(true)}
-            className="text-xs hidden md:inline-flex"
+    <header className="h-16 shrink-0 w-full bg-[#2B303A] text-[#EAE6DF] border-b border-white/10 px-4 sm:px-6 flex items-center justify-between select-none z-30">
+      <div className="flex items-center gap-3">
+        {onToggleMobileSidebar && (
+          <button
+            type="button"
+            onClick={onToggleMobileSidebar}
+            className="md:hidden p-2 rounded-[10px] bg-[#383E4A] text-[#EAE6DF] hover:bg-[#4E5666] transition-colors cursor-pointer"
+            aria-label="Toggle menu"
           >
-            API Key: {currentKeyMasked}
-          </Button>
+            <FiMenu className="h-5 w-5" />
+          </button>
+        )}
 
-          {onRefreshAll && (
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={onRefreshAll}
-              isLoading={isRefreshing}
-              title="Perbarui data realtime"
-            >
-              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="2"
-                  d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-                />
-              </svg>
-              <span className="hidden sm:inline">Refresh</span>
-            </Button>
-          )}
-
-          <ThemeToggle />
+        <div className="flex items-center gap-2 text-xs">
+          <span className="hidden sm:inline font-medium text-[#9B9FA7]">Dashboard</span>
+          <span className="hidden sm:inline text-[#9B9FA7]">/</span>
+          <span className="font-semibold text-[#EAE6DF]">{activeTabTitle}</span>
+          <Badge
+            variant={isHealthy ? 'success' : 'danger'}
+            size="sm"
+            className="ml-2 hidden lg:inline-flex items-center"
+          >
+            {isHealthy ? 'ONLINE' : 'TERPUTUS'}
+          </Badge>
         </div>
       </div>
 
-      <AlertModal
-        isOpen={apiKeyModalOpen}
-        onClose={() => setApiKeyModalOpen(false)}
-        title="Konfigurasi Client API Key"
-        description="Masukkan API Key yang sesuai dengan nilai API_KEY pada file .env gateway. Key ini disimpan di local browser untuk melakukan otentikasi request dashboard ke endpoint API."
-        type="info"
-        confirmText="Simpan Key"
-        onConfirm={handleSaveApiKey}
-      >
-        <div className="mt-4">
-          <Input
-            label="API Key (x-api-key)"
-            type="password"
-            placeholder="Masukkan nilai API Key gateway..."
-            value={apiKeyInput}
-            onChange={(e) => setApiKeyInput(e.target.value)}
-          />
-        </div>
-      </AlertModal>
+      <div className="flex items-center gap-2 sm:gap-3">
+        {onRefreshAll && (
+          <Button
+            variant="pill"
+            size="sm"
+            onClick={onRefreshAll}
+            isLoading={isRefreshing}
+            title="Perbarui data pembayaran secara langsung"
+          >
+            <FiRefreshCw className={`h-3.5 w-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
+            <span className="hidden sm:inline">Perbarui</span>
+          </Button>
+        )}
+
+        {currentUser ? (
+          <div className="flex items-center gap-1.5 pl-1">
+            <Link
+              href="/profile"
+              className="hidden lg:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#383E4A] hover:bg-[#4E5666] text-xs font-medium text-[#EAE6DF] transition-colors"
+              title="Buka Profil Akun"
+            >
+              <FiUser className="h-3.5 w-3.5 text-[#8EB89A]" />
+              <span className="max-w-[120px] truncate">{currentUser.name || currentUser.username}</span>
+            </Link>
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full bg-[#383E4A] hover:bg-[#B85D43]/80 hover:text-white text-xs font-semibold text-[#9B9FA7] transition-all cursor-pointer"
+              title="Keluar dan Kunci Brankas"
+            >
+              <FiLock className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Kunci Brankas</span>
+            </button>
+          </div>
+        ) : (
+          <Link
+            href="/login"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#4E6E58] hover:bg-[#3D5745] text-white text-xs font-semibold shadow-xs transition-all cursor-pointer"
+          >
+            <FiUser className="h-3.5 w-3.5" />
+            <span>Masuk</span>
+          </Link>
+        )}
+
+        <ThemeToggle />
+      </div>
     </header>
   );
 }

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { RiShieldCheckLine, RiAlertLine, RiRefreshLine } from 'react-icons/ri';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
@@ -26,31 +27,33 @@ export function TokenStatusCard({ tokenStatus, isLoading, onRefresh }: TokenStat
       // Re-trigger token check which automatically attempts session refresh if 401
       await GatewayService.getTokenStatus();
       onRefresh();
-      setFeedback('Status token berhasil dicek ulang.');
+      setFeedback('Koneksi akun berhasil diperiksa.');
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Gagal memperbarui token';
-      setFeedback(`Error: ${msg}`);
+      const msg = err instanceof Error ? err.message : 'Gagal memeriksa koneksi akun';
+      setFeedback(`Perhatian: ${msg}`);
     } finally {
       setIsRefreshingToken(false);
     }
   };
 
   return (
-    <Card className="relative overflow-hidden border-slate-200 dark:border-slate-800">
-      <div className="absolute top-0 right-0 h-24 w-24 translate-x-8 -translate-y-8 rounded-full bg-[#00aa13]/10 blur-2xl pointer-events-none" />
-
+    <Card className="relative overflow-hidden">
       <CardContent className="p-5">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div className="space-y-1">
-            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-              Sesi GoPay Merchant
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-[#7A7670] dark:text-[#9E9A92]">
+              Status Akun & Koneksi GoPay
             </span>
-            <div className="flex items-center gap-2 mt-1">
+            <div className="flex items-center gap-2.5 mt-1">
               <Badge variant={isValid ? 'success' : 'danger'} size="md">
-                <span className={isValid ? 'mr-1.5 h-2 w-2 rounded-full bg-emerald-500 animate-pulse' : 'mr-1.5 h-2 w-2 rounded-full bg-rose-500'} />
-                {isValid ? 'SESI AKTIF' : 'KEDALUWARSA / BELUM LOGIN'}
+                {isValid ? (
+                  <RiShieldCheckLine className="mr-1.5 h-3.5 w-3.5" />
+                ) : (
+                  <RiAlertLine className="mr-1.5 h-3.5 w-3.5" />
+                )}
+                {isValid ? 'AKUN AKTIF & SIAP TERIMA BAYAR' : 'KONEKSI TERPUTUS / PERLU MASUK'}
               </Badge>
-              {isLoading && <span className="text-xs text-slate-400">Memeriksa...</span>}
+              {isLoading && <span className="text-xs text-[#7A7670] dark:text-[#9E9A92]">Memeriksa akun...</span>}
             </div>
           </div>
 
@@ -59,28 +62,30 @@ export function TokenStatusCard({ tokenStatus, isLoading, onRefresh }: TokenStat
             size="sm"
             onClick={handleManualRefreshToken}
             isLoading={isRefreshingToken}
+            className="text-xs self-start sm:self-auto inline-flex items-center"
           >
-            Check Sesi
+            <RiRefreshLine className={`mr-1.5 h-3.5 w-3.5 ${isRefreshingToken ? 'animate-spin' : ''}`} />
+            Cek Koneksi Akun
           </Button>
         </div>
 
-        <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs border-t border-slate-100 dark:border-slate-800/80 pt-3">
+        <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs border-t border-[#E8E2D9] dark:border-white/10 pt-3">
           <div>
-            <span className="text-slate-500 dark:text-slate-400">Status Pesan:</span>
-            <p className="font-medium text-slate-800 dark:text-slate-200 truncate mt-0.5">
-              {tokenStatus?.data?.message || tokenStatus?.message || (isValid ? 'Token valid' : 'Sesi tidak ditemukan')}
+            <span className="text-[#7A7670] dark:text-[#9E9A92]">Status Saat Ini:</span>
+            <p className="font-medium text-[#1E2229] dark:text-[#F3EFEA] truncate mt-0.5">
+              {tokenStatus?.data?.message || tokenStatus?.message || (isValid ? 'Akun aktif dan siap menerima pembayaran' : 'Koneksi akun terputus atau perlu masuk kembali')}
             </p>
           </div>
           <div>
-            <span className="text-slate-500 dark:text-slate-400">Merchant Info:</span>
-            <p className="font-medium text-slate-800 dark:text-slate-200 mt-0.5">
-              {tokenStatus?.account?.name || 'Gojek Merchant Partner'}
+            <span className="text-[#7A7670] dark:text-[#9E9A92]">Nama Akun / Toko:</span>
+            <p className="font-medium text-[#1E2229] dark:text-[#F3EFEA] mt-0.5">
+              {tokenStatus?.account?.name || 'Akun GoPay Toko'}
             </p>
           </div>
         </div>
 
         {feedback && (
-          <p className="mt-3 text-xs text-slate-500 dark:text-slate-400 italic">
+          <p className="mt-3 text-xs text-[#7A7670] dark:text-[#9E9A92] italic">
             {feedback}
           </p>
         )}

@@ -1,0 +1,217 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-02T12:00:00.000Z",
+  "title": "Design System: GoPay Gateway Dashboard",
+  "extensions": {
+    "colorMeta": {
+      "shell-dark": {
+        "role": "primary",
+        "displayName": "Charcoal Slate Shell",
+        "canonical": "#2B303A",
+        "tonalRamp": ["#13161a", "#1b1e24", "#232730", "#2b303a", "#454d5d", "#646d80", "#8e96a6", "#c8cdd7"]
+      },
+      "shell-hover": {
+        "role": "primary",
+        "displayName": "Charcoal Slate Hover",
+        "canonical": "#383E4A",
+        "tonalRamp": ["#1a1d22", "#242830", "#2e333d", "#383e4a", "#525b6d", "#727d92", "#9ca5b7", "#d1d6e1"]
+      },
+      "canvas-warm": {
+        "role": "secondary",
+        "displayName": "Warm Canvas",
+        "canonical": "#DED8CE",
+        "tonalRamp": ["#36322b", "#5a5448", "#827a69", "#aba18d", "#ded8ce", "#e8e3dc", "#f1eee9", "#faf9f7"]
+      },
+      "card-surface": {
+        "role": "secondary",
+        "displayName": "Cream Card Surface",
+        "canonical": "#F3EFEA",
+        "tonalRamp": ["#3c3935", "#625d57", "#8d867e", "#bbb3a8", "#e4ddd2", "#f3efea", "#f9f7f5", "#fdfcfb"]
+      },
+      "card-subtle": {
+        "role": "secondary",
+        "displayName": "Subtle Card Contrast",
+        "canonical": "#E8E2D9",
+        "tonalRamp": ["#39352e", "#5e584c", "#877f6f", "#b4aa96", "#ded5c3", "#e8e2d9", "#f4f1eb", "#faf9f6"]
+      },
+      "text-primary": {
+        "role": "neutral",
+        "displayName": "Deep Slate Text",
+        "canonical": "#1E2229",
+        "tonalRamp": ["#0b0d10", "#14171c", "#1e2229", "#353c48", "#535d70", "#76839b", "#a5afc2", "#d9dee7"]
+      },
+      "text-secondary": {
+        "role": "neutral",
+        "displayName": "Muted Taupe Text",
+        "canonical": "#7A7670",
+        "tonalRamp": ["#201f1d", "#383633", "#55524e", "#7a7670", "#9b9791", "#bcb8b3", "#dedcd9", "#f2f1f0"]
+      },
+      "text-on-dark": {
+        "role": "neutral",
+        "displayName": "Parchment Light Text",
+        "canonical": "#EAE6DF",
+        "tonalRamp": ["#3a3834", "#5e5b55", "#87837b", "#b4b0a7", "#dedad2", "#eae6df", "#f5f3f0", "#faf9f8"]
+      },
+      "text-on-dark-muted": {
+        "role": "neutral",
+        "displayName": "Muted Parchment Text",
+        "canonical": "#9B9FA7",
+        "tonalRamp": ["#222427", "#3b3e44", "#595d66", "#7a7f8a", "#9b9fa7", "#b8bcc3", "#d7d9df", "#f0f1f4"]
+      },
+      "status-positive": {
+        "role": "tertiary",
+        "displayName": "Positive Forest",
+        "canonical": "#4E6E58",
+        "tonalRamp": ["#16211a", "#25372c", "#374f3f", "#4e6e58", "#6c9378", "#8eb89a", "#b5d8bf", "#e0f0e6"]
+      },
+      "status-negative": {
+        "role": "tertiary",
+        "displayName": "Muted Terracotta",
+        "canonical": "#B85D43",
+        "tonalRamp": ["#2e140d", "#4d2216", "#733321", "#9d462d", "#b85d43", "#cb7b64", "#dc9c8b", "#f0c8be"]
+      },
+      "chart-highlight": {
+        "role": "tertiary",
+        "displayName": "Chart Slate",
+        "canonical": "#2B303A",
+        "tonalRamp": ["#13161a", "#1b1e24", "#232730", "#2b303a", "#454d5d", "#646d80", "#8e96a6", "#c8cdd7"]
+      },
+      "chart-secondary": {
+        "role": "tertiary",
+        "displayName": "Chart Muted Pebble",
+        "canonical": "#8E8D8A",
+        "tonalRamp": ["#252524", "#3f3f3d", "#5f5e5b", "#81807d", "#8e8d8a", "#acadab", "#cececd", "#eaeaea"]
+      },
+      "chart-tertiary": {
+        "role": "tertiary",
+        "displayName": "Chart Sand",
+        "canonical": "#C6BEB5",
+        "tonalRamp": ["#312d29", "#504a43", "#746b62", "#9d9286", "#c6beb5", "#d6d0c9", "#e7e3de", "#f6f4f2"]
+      },
+      "chart-subtle": {
+        "role": "tertiary",
+        "displayName": "Chart Outline",
+        "canonical": "#D9D2C7",
+        "tonalRamp": ["#35312a", "#565045", "#7c7465", "#a79d8c", "#d0c8b9", "#d9d2c7", "#eae6df", "#f6f4f1"]
+      }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display KPI", "purpose": "Hero metrics, total monetary turnover, and transaction volume." },
+      "headline": { "displayName": "Headline", "purpose": "Section cards, module headers, and modal dialog titles." },
+      "title": { "displayName": "Title", "purpose": "Table headers, field labels, and secondary KPI indicators." },
+      "body": { "displayName": "Body Data", "purpose": "Table row data, transaction ID strings, and status descriptions." },
+      "label": { "displayName": "Label / Micro", "purpose": "Metadata, timestamps, countdown timers, and small pill badges." }
+    },
+    "shadows": [
+      { "name": "card-micro", "value": "0 2px 8px -2px rgba(43, 48, 58, 0.05)", "purpose": "Soft diffused bento card elevation." },
+      { "name": "modal-overlay", "value": "0 10px 25px -5px rgba(43, 48, 58, 0.15), 0 8px 10px -6px rgba(43, 48, 58, 0.1)", "purpose": "Elevated modal dialogs and dropdown menus." }
+    ],
+    "motion": [
+      { "name": "ease-standard", "value": "cubic-bezier(0.4, 0, 0.2, 1)", "purpose": "Default easing for micro-lift hover and tab switching." }
+    ],
+    "breakpoints": [
+      { "name": "sm", "value": "640px" },
+      { "name": "md", "value": "768px" },
+      { "name": "lg", "value": "1024px" },
+      { "name": "xl", "value": "1280px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Pill Filter Button",
+      "kind": "button",
+      "refersTo": "button-pill",
+      "description": "Capsule filter button with status indicator for sidebar and top filter bars.",
+      "html": "<button class=\"ds-btn-pill\"><span class=\"ds-dot\"></span>HARI INI</button>",
+      "css": ".ds-btn-pill { display: inline-flex; align-items: center; gap: 8px; background: #383E4A; color: #EAE6DF; border: none; border-radius: 9999px; padding: 6px 14px; font-size: 11px; font-weight: 600; cursor: pointer; transition: background 0.2s, transform 0.15s; } .ds-btn-pill:hover { background: #454d5d; transform: translateY(-1px); } .ds-dot { width: 6px; height: 6px; border-radius: 50%; background: #4E6E58; }"
+    },
+    {
+      "name": "Primary Action Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Solid dark slate action button for primary forms and generation triggers.",
+      "html": "<button class=\"ds-btn-primary\">GENERATE QRIS DINAMIS</button>",
+      "css": ".ds-btn-primary { background: #2B303A; color: #EAE6DF; border: none; border-radius: 10px; padding: 10px 20px; font-size: 12px; font-weight: 600; letter-spacing: 0.02em; cursor: pointer; transition: background 0.2s, transform 0.15s; } .ds-btn-primary:hover { background: #383E4A; transform: translateY(-1px); }"
+    },
+    {
+      "name": "KPI Metric Card",
+      "kind": "card",
+      "refersTo": "card-container",
+      "description": "Modular bento card showing key financial metric with tabular typography.",
+      "html": "<div class=\"ds-kpi-card\"><span class=\"ds-kpi-label\">TOTAL MUTASI MASUK</span><div class=\"ds-kpi-val\">Rp 4.850.000</div><div class=\"ds-kpi-footer\"><span class=\"ds-kpi-trend\">+12.4%</span> vs periode lalu</div></div>",
+      "css": ".ds-kpi-card { background: #F3EFEA; border: 1px solid rgba(255, 255, 255, 0.65); border-radius: 14px; box-shadow: 0 2px 8px -2px rgba(43, 48, 58, 0.05); padding: 18px 20px; display: flex; flex-direction: column; gap: 8px; } .ds-kpi-label { font-size: 11px; font-weight: 600; color: #7A7670; letter-spacing: 0.04em; text-transform: uppercase; } .ds-kpi-val { font-size: 26px; font-weight: 700; color: #1E2229; line-height: 1.1; font-variant-numeric: tabular-nums; } .ds-kpi-footer { font-size: 11px; color: #7A7670; } .ds-kpi-trend { color: #4E6E58; font-weight: 600; }"
+    },
+    {
+      "name": "Tactile Input Field",
+      "kind": "input",
+      "refersTo": "input-field",
+      "description": "Minimal form input with monetary prefix and clear focus ring.",
+      "html": "<div class=\"ds-input-wrapper\"><span class=\"ds-input-prefix\">Rp</span><input class=\"ds-input\" type=\"text\" value=\"50.000\" /></div>",
+      "css": ".ds-input-wrapper { display: flex; align-items: center; background: #FFFFFF; border: 1px solid #D9D2C7; border-radius: 10px; overflow: hidden; transition: border-color 0.2s, box-shadow 0.2s; } .ds-input-wrapper:focus-within { border-color: #2B303A; box-shadow: 0 0 0 3px rgba(43, 48, 58, 0.08); } .ds-input-prefix { background: #E8E2D9; color: #7A7670; padding: 10px 14px; font-size: 12px; font-weight: 600; border-right: 1px solid #D9D2C7; } .ds-input { border: none; outline: none; padding: 10px 14px; font-size: 12px; font-weight: 500; color: #1E2229; width: 100%; font-variant-numeric: tabular-nums; }"
+    },
+    {
+      "name": "Status Chip",
+      "kind": "chip",
+      "refersTo": "status-chip",
+      "description": "Ergonomic semantic tag for transaction settlement status.",
+      "html": "<span class=\"ds-chip-success\"><span class=\"ds-chip-dot\"></span>SETTLED</span>",
+      "css": ".ds-chip-success { display: inline-flex; align-items: center; gap: 6px; background: rgba(78, 110, 88, 0.12); color: #4E6E58; border-radius: 9999px; padding: 4px 10px; font-size: 11px; font-weight: 600; letter-spacing: 0.02em; } .ds-chip-dot { width: 5px; height: 5px; border-radius: 50%; background: #4E6E58; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Tactile Ledger",
+    "overview": "The Tactile Ledger menghadirkan suasana ruang kerja analis finansial yang tenang, elegan, dan data-dense. Sistem ini secara tegas menolak estetika sterile white (#ffffff murni) yang menyilaukan dan kontras tinggi neon yang melelahkan mata operator dalam jam kerja panjang. Sebagai gantinya, antarmuka dibangun di atas harmoni tone hangat (earthy corporate): bingkai luar berona arang gelap (Charcoal Slate #2B303A) yang membungkus kanvas kerja hangat (Warm Canvas #DED8CE) dan kartu metrik krem lembut (Soft Card #F3EFEA).\n\nKarakter visualnya mengutamakan presisi dan taktilitas: sudut kartu membulat anggun (14px), bayangan mikroskopis yang menyebar halus (diffused micro-shadow), dan angka metrik finansial berformat tabular-nums yang sejajar secara vertikal dengan presisi matematis. Pengguna tidak disuguhi sekadar visual dashboard modern generik, melainkan meja instrumen finansial yang kokoh, terpercaya, dan ergonomis untuk monitoring transaksi gateway real-time.",
+    "keyCharacteristics": [
+      "Warm Monochromatic Hierarchy: Menghindari warna putih murni; memanfaatkan gradasi hangat bersahaja yang ramah di mata untuk sesi monitoring lama.",
+      "L-Shaped Structural Frame: Navigasi samping (sidebar) dan header bar terintegrasi dalam satu bingkai monolitik gelap yang memusatkan fokus mata ke area kanvas bento.",
+      "Tactile Bento Grid: Modul-modul data dikemas dalam kartu modular berbingkai highlight tipis dengan micro-elevation yang organik.",
+      "Financial Metric Rigor: Tipografi angka moneter wajib menggunakan font-variant-numeric: tabular-nums agar komparasi data numerik lurus sejajar tanpa jitter."
+    ],
+    "rules": [
+      {
+        "name": "The No-Sterile-White Rule",
+        "body": "Jangan pernah menggunakan latar #ffffff murni pada kartu atau kanvas utama. Semua permukaan terang wajib menggunakan gradasi #F3EFEA atau #DED8CE untuk menjaga kehangatan visual dan kenyamanan mata.",
+        "section": "colors"
+      },
+      {
+        "name": "The Muted Status Rule",
+        "body": "Warna status hijau dan merah tidak boleh menggunakan saturasi neon (#00ff00 / #ff0000). Gunakan #4E6E58 (Forest) dan #B85D43 (Terracotta) yang terkalibrasi selaras dengan palet mineral hangat.",
+        "section": "colors"
+      },
+      {
+        "name": "The Tabular Precision Rule",
+        "body": "Seluruh angka nominal rupiah, persentase perubahan, saldo, dan waktu wajib menyertakan kelas CSS tabular-nums (font-variant-numeric: tabular-nums). Angka harus sejajar secara kolom tanpa geseran horizontal saat nilai berubah secara dinamis.",
+        "section": "typography"
+      },
+      {
+        "name": "The Subtitle Muting Rule",
+        "body": "Subtitle kartu dan unit satuan tidak boleh bersaing bobotnya dengan angka KPI. Gunakan ukuran maksimum 12px dengan warna --text-secondary (#7A7670).",
+        "section": "typography"
+      },
+      {
+        "name": "The Ghost Highlight Rule",
+        "body": "Setiap kartu bento wajib memiliki border highlight 1px solid rgba(255, 255, 255, 0.65). Highlight ini meniru pantulan tepi material kartu fisik yang diletakkan di atas kanvas hangat.",
+        "section": "elevation"
+      },
+      {
+        "name": "The Flat-At-Rest Rule",
+        "body": "Modul dan tombol berada pada elevasi datar saat diam. Elevasi visual hanya berubah halus (micro-lift translateY(-1px)) saat kursor melakukan hover pada elemen interaktif.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do selalu aktifkan font-variant-numeric: tabular-nums pada seluruh teks yang menampilkan nominal mata uang, tanggal, dan durasi hitung mundur token.",
+      "Do gunakan highlight semi-transparan 1px solid rgba(255, 255, 255, 0.65) pada kartu modul bento untuk menciptakan dimensi taktil yang kaya.",
+      "Do pertahankan bingkai L-Shaped Frame (Sidebar + Top Bar gelap) dalam satu keluarga warna solid #2B303A.",
+      "Do gunakan warna status teredam (#4E6E58 untuk sukses, #B85D43 untuk gagal) agar selaras dengan atmosfer earthy dashboard.",
+      "Do pastikan padding kartu bento konsisten pada skala 16px - 20px."
+    ],
+    "donts": [
+      "Don't gunakan background putih murni (#ffffff) untuk kontainer kartu utama atau background halaman.",
+      "Don't gunakan warna neon dengan saturasi tinggi (misal #00FF66 atau #FF0033) untuk indikator status transaksi.",
+      "Don't gunakan bayangan hitam pekat dengan blur besar (rgba(0,0,0,0.5)); bayangan wajib menggunakan micro-diffused tone arang (rgba(43, 48, 58, 0.05)).",
+      "Don't gunakan garis tabel vertikal atau border tebal yang memecah kepadatan visual bento grid.",
+      "Don't gunakan dialog pop-up browser bawaan (window.alert() / window.confirm()); gunakan dialog modal bertema AlertModal dengan styling The Tactile Ledger."
+    ]
+  }
+}

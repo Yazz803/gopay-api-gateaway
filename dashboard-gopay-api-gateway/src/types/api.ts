@@ -16,12 +16,23 @@ export interface CreateQrisRequest {
 
 export interface CreateQrisResponse {
   success: boolean;
-  status: string;
-  data: string; // Dynamic QRIS string
-  amount: number;
-  trx_id: string;
-  expires_at: string;
-  check_status_url: string;
+  status?: string;
+  data:
+    | string
+    | {
+        qris_id?: string;
+        trx_id?: string;
+        qris_url?: string;
+        qris_code?: string;
+        amount?: number;
+        expires_at?: string;
+        expires_in?: string;
+      };
+  qris_code?: string;
+  amount?: number;
+  trx_id?: string;
+  expires_at?: string;
+  check_status_url?: string;
   qr_image_url?: string;
   message?: string;
 }
@@ -46,6 +57,7 @@ export interface TokenStatusResponse {
   success: boolean;
   active?: boolean;
   expires_in?: number;
+  expires_at?: string;
   account?: {
     name?: string;
     phone?: string;
@@ -54,6 +66,12 @@ export interface TokenStatusResponse {
   data?: {
     token_status?: string;
     message?: string;
+    expires_at?: string;
+    account?: {
+      name?: string;
+      phone?: string;
+      merchant_id?: string;
+    };
   };
   message?: string;
 }

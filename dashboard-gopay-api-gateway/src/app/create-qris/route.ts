@@ -2,13 +2,17 @@ import { NextRequest } from 'next/server';
 import { validateApiKey, handleCorsOptions, jsonResponse } from '@/lib/auth';
 import { generateDynamicQRIS } from '@/lib/emvco';
 import { gatewayState, logActivity } from '@/lib/gateway-state';
+import { getAuthenticatedUser } from '@/lib/auth-session';
+import { recordQrisOrderToDb, recordActivityLogToDb } from '@/lib/merchant-session-db';
+import { getDb, schema, isDatabaseConfigured } from '@/lib/db';
+import { eq } from 'drizzle-orm';
 
 export const dynamic = 'force-dynamic';
 
 const QRIS_EXPIRY_MS = 5 * 60 * 1000; // 5 menit
 
 async function handleCreateQris(req: NextRequest) {
-  const auth = validateApiKey(req);
+  const auth = await validateApiKey(req);
   if (!auth.valid) return auth.response!;
 
   let amount: string | number | null = null;
@@ -33,11 +37,41 @@ async function handleCreateQris(req: NextRequest) {
     );
   }
 
-  const staticTemplate = process.env.QRIS_STATIC;
+  const authUser = await getAuthenticatedUser(req).catch(() => null);
+  let staticTemplate: string | null = authUser?.qrisStatic || null;
+
+  const targetUserId = authUser?.id || auth.userId;
+
+  if (!staticTemplate && targetUserId && isDatabaseConfigured()) {
+    const db = getDb();
+    if (db) {
+      try {
+        const u = await db
+          .select({ qrisStatic: schema.usersTable.qrisStatic })
+          .from(schema.usersTable)
+          .where(eq(schema.usersTable.id, targetUserId))
+          .limit(1);
+        if (u.length > 0 && u[0].qrisStatic) {
+          staticTemplate = u[0].qrisStatic;
+        }
+      } catch {
+        // DB read error fallback
+      }
+    }
+  }
+
+  if (!staticTemplate) {
+    staticTemplate = process.env.QRIS_STATIC || null;
+  }
+
   if (!staticTemplate) {
     return jsonResponse(
-      { success: false, message: 'QRIS_STATIC belum dikonfigurasi di .env' },
-      { status: 500 }
+      {
+        success: false,
+        message:
+          'QRIS Statis toko belum diunggah. Silakan unggah foto QRIS Statis toko Anda terlebih dahulu sebelum membuat kode QRIS dinamis.',
+      },
+      { status: 400 }
     );
   }
 
@@ -69,8 +103,30 @@ async function handleCreateQris(req: NextRequest) {
 
   logActivity('INFO', `QRIS Dinamis dibuat | TRX-ID: ${trxId} | Nominal: Rp ${parsedAmount}`);
 
+  const activeUserId = authUser?.id || auth.userId;
+  if (activeUserId) {
+    try {
+      await recordQrisOrderToDb(activeUserId, {
+        qrisId,
+        trxId,
+        nominal: parsedAmount,
+        payload: dynamicCode,
+        expiresAt,
+        status: 'PENDING',
+      });
+      await recordActivityLogToDb(activeUserId, {
+        logType: 'INFO',
+        message: `QRIS Dinamis dibuat | TRX-ID: ${trxId} | Nominal: Rp ${parsedAmount}`,
+        details: { qrisId, trxId, amount: parsedAmount },
+      });
+    } catch (dbErr) {
+      console.error('[CreateQris DB Persist Error]:', dbErr);
+    }
+  }
+
   return jsonResponse({
     success: true,
+    status: 'PENDING',
     data: {
       qris_id: qrisId,
       trx_id: trxId,
@@ -80,6 +136,11 @@ async function handleCreateQris(req: NextRequest) {
       expires_at: expiresAt.toISOString(),
       expires_in: '5 menit',
     },
+    qris_code: dynamicCode,
+    amount: parsedAmount,
+    trx_id: trxId,
+    expires_at: expiresAt.toISOString(),
+    check_status_url: publicUrl,
   });
 }
 

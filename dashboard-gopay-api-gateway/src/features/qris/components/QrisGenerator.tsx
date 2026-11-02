@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
+import { FiCheckCircle, FiCopy, FiCheck, FiClock, FiAlertCircle } from 'react-icons/fi';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -28,7 +29,7 @@ export function QrisGenerator({ onPaymentSuccess }: { onPaymentSuccess?: () => v
     if (e) e.preventDefault();
     const amountNum = parseInt(amountInput.replace(/\D/g, ''), 10);
     if (!amountNum || amountNum <= 0) {
-      setErrorMessage('Nominal harus lebih dari 0.');
+      setErrorMessage('Jumlah pembayaran harus lebih dari Rp 0.');
       return;
     }
 
@@ -49,7 +50,7 @@ export function QrisGenerator({ onPaymentSuccess }: { onPaymentSuccess?: () => v
       });
 
       if (!res.success) {
-        throw new Error(res.message || 'Gagal generate QRIS');
+        throw new Error(res.message || 'Gagal membuat kode QRIS');
       }
 
       setGeneratedQris(res);
@@ -67,7 +68,10 @@ export function QrisGenerator({ onPaymentSuccess }: { onPaymentSuccess?: () => v
       }, 1000);
 
       // Start polling for payment verification
-      const checkId = res.trx_id;
+      const checkId =
+        res.trx_id ||
+        (typeof res.data === 'object' ? res.data.trx_id : '') ||
+        generatedTrxId;
       pollIntervalRef.current = setInterval(async () => {
         try {
           const statusRes = await GatewayService.getQrStatus(checkId);
@@ -100,9 +104,25 @@ export function QrisGenerator({ onPaymentSuccess }: { onPaymentSuccess?: () => v
     };
   }, []);
 
+  // Safe accessor helpers
+  const qrisString =
+    typeof generatedQris?.data === 'string'
+      ? generatedQris.data
+      : generatedQris?.data?.qris_code || generatedQris?.qris_code || '';
+
+  const qrisTrxId =
+    generatedQris?.trx_id ||
+    (typeof generatedQris?.data === 'object' ? generatedQris.data.trx_id : '') ||
+    '';
+
+  const qrisAmount =
+    generatedQris?.amount ||
+    (typeof generatedQris?.data === 'object' ? generatedQris.data.amount : 0) ||
+    0;
+
   const handleCopyPayload = () => {
-    if (!generatedQris?.data) return;
-    navigator.clipboard.writeText(generatedQris.data);
+    if (!qrisString) return;
+    navigator.clipboard.writeText(qrisString);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -114,17 +134,17 @@ export function QrisGenerator({ onPaymentSuccess }: { onPaymentSuccess?: () => v
   const isPaid = paymentStatus?.paid || paymentStatus?.status === 'PAID';
   const isExpired = timeLeft === 0 || paymentStatus?.status === 'EXPIRED';
 
-  // QR Code Image Generator URL (using Google Charts API for reliable standalone QR rendering)
-  const qrImageUrl = generatedQris?.data
-    ? `https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(generatedQris.data)}`
+  // QR Code Image Generator URL
+  const qrImageUrl = qrisString
+    ? `https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(qrisString)}`
     : null;
 
   return (
     <Card className="border-slate-200 dark:border-slate-800">
       <CardHeader>
-        <CardTitle>Generator & Simulator QRIS Dinamis</CardTitle>
+        <CardTitle>Buat Kode QRIS Pembayaran</CardTitle>
         <CardDescription>
-          Buat QRIS dinamis GoPay secara instan dengan nominal spesifik dan auto-checker
+          Ketik jumlah tagihan untuk menampilkan kode QRIS resmi yang siap di-scan oleh pembeli
         </CardDescription>
       </CardHeader>
 
@@ -132,22 +152,22 @@ export function QrisGenerator({ onPaymentSuccess }: { onPaymentSuccess?: () => v
         <form onSubmit={handleGenerate} className="space-y-4">
           <div>
             <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1.5">
-              Nominal Pembayaran (IDR)
+              Jumlah Tagihan (Rupiah)
             </label>
             <Input
               type="number"
-              placeholder="Contoh: 10000"
+              placeholder="Contoh: 50000"
               value={amountInput}
               onChange={(e) => setAmountInput(e.target.value)}
               required
             />
-            <div className="flex flex-wrap gap-1.5 mt-2">
+            <div className="flex flex-wrap gap-2 mt-2">
               {quickAmounts.map((amt) => (
                 <button
                   key={amt}
                   type="button"
                   onClick={() => setAmountInput(String(amt))}
-                  className="text-[11px] px-2 py-0.5 rounded-md bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 transition-colors cursor-pointer"
+                  className="text-xs px-3 py-1 rounded-full bg-[#E8E2D9] hover:bg-[#DED8CE] dark:bg-[#272C37] dark:hover:bg-[#333946] text-[#1E2229] dark:text-[#F3EFEA] font-semibold transition-colors cursor-pointer tabular-nums shadow-xs"
                 >
                   {formatRupiah(amt)}
                 </button>
@@ -157,11 +177,11 @@ export function QrisGenerator({ onPaymentSuccess }: { onPaymentSuccess?: () => v
 
           <div>
             <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1.5">
-              Custom TRX / Order ID (Opsional)
+              Catatan / Nomor Nota (Opsional)
             </label>
             <Input
               type="text"
-              placeholder="Biarkan kosong untuk auto-generate ID..."
+              placeholder="Contoh: NOTA-102 (kosongkan jika otomatis)"
               value={trxIdInput}
               onChange={(e) => setTrxIdInput(e.target.value)}
             />
@@ -178,7 +198,7 @@ export function QrisGenerator({ onPaymentSuccess }: { onPaymentSuccess?: () => v
             className="w-full"
             isLoading={isGenerating}
           >
-            Generate QRIS Dinamis
+            Tampilkan Kode QRIS
           </Button>
         </form>
 
@@ -186,55 +206,54 @@ export function QrisGenerator({ onPaymentSuccess }: { onPaymentSuccess?: () => v
           <div className="mt-6 pt-6 border-t border-slate-200 dark:border-slate-800 flex flex-col items-center">
             {/* Payment Status Notification Banner */}
             {isPaid ? (
-              <div className="w-full mb-5 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800 p-4 text-center animate-in zoom-in-95 duration-200">
-                <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-900 text-emerald-600 dark:text-emerald-300 mb-2">
-                  <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" />
-                  </svg>
+              <div className="w-full mb-5 rounded-[12px] bg-[#4E6E58]/15 dark:bg-[#658E72]/20 border border-[#4E6E58]/30 dark:border-[#658E72]/40 p-4 text-center animate-in zoom-in-95 duration-200">
+                <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-[12px] bg-[#4E6E58]/20 dark:bg-[#658E72]/30 mb-2">
+                  <FiCheckCircle className="h-6 w-6 text-[#4E6E58] dark:text-[#8EB89A]" />
                 </div>
-                <h4 className="text-sm font-bold text-emerald-800 dark:text-emerald-200">
+                <h4 className="text-xs font-bold text-[#4E6E58] dark:text-[#8EB89A]">
                   Pembayaran Berhasil Diterima!
                 </h4>
-                <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-1">
-                  Nominal {formatRupiah(generatedQris.amount)} terverifikasi lunas
+                <p className="text-xs text-[#4E6E58]/80 dark:text-[#8EB89A]/90 mt-1 tabular-nums font-semibold">
+                  Uang sejumlah {formatRupiah(qrisAmount)} telah berhasil masuk ke GoPay Anda
                 </p>
               </div>
             ) : isExpired ? (
-              <div className="w-full mb-5 rounded-xl bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-800 p-3 text-center">
-                <p className="text-xs font-semibold text-rose-700 dark:text-rose-300">
-                  QRIS Kedaluwarsa. Silakan generate ulang untuk transaksi baru.
+              <div className="w-full mb-5 rounded-[12px] bg-[#B85D43]/15 dark:bg-[#D07258]/20 border border-[#B85D43]/30 dark:border-[#D07258]/40 p-3 text-center">
+                <p className="text-xs font-semibold text-[#B85D43] dark:text-[#F0C8BE] inline-flex items-center justify-center gap-1.5">
+                  <FiAlertCircle className="h-4 w-4 shrink-0" />
+                  Batas waktu pembayaran telah habis. Silakan buat kode QR baru untuk pelanggan.
                 </p>
               </div>
             ) : (
-              <div className="w-full mb-4 flex items-center justify-between rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 px-3 py-2 text-xs">
-                <div className="flex items-center gap-2 text-amber-800 dark:text-amber-300 font-medium">
-                  <span className="h-2 w-2 rounded-full bg-amber-500 animate-ping" />
-                  Menunggu Pembayaran Customer...
+              <div className="w-full mb-4 flex items-center justify-between rounded-[10px] bg-[#D99B26]/15 dark:bg-[#D99B26]/20 border border-[#D99B26]/30 dark:border-[#D99B26]/40 px-3.5 py-2 text-xs">
+                <div className="flex items-center gap-2 text-[#A36A18] dark:text-[#F3C878] font-semibold">
+                  <FiClock className="h-4 w-4 shrink-0" />
+                  Menunggu pembeli scan & bayar...
                 </div>
-                <Badge variant="warning" size="sm">
-                  Berlaku: {formattedCountdown}
+                <Badge variant="warning" size="sm" className="tabular-nums">
+                  Waktu tersisa: {formattedCountdown}
                 </Badge>
               </div>
             )}
 
             {/* QR Code Container */}
-            <div className="relative rounded-2xl bg-white p-4 shadow-md border border-slate-200 dark:border-slate-700 flex flex-col items-center">
+            <div className="relative rounded-[14px] bg-white p-4 shadow-[0_2px_8px_-2px_rgba(43,48,58,0.05)] border border-white/65 dark:border-white/10 flex flex-col items-center">
               {qrImageUrl && (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={qrImageUrl}
-                  alt={`QRIS Dinamis ${generatedQris.amount}`}
+                  alt={`QRIS Dinamis ${qrisAmount}`}
                   width={200}
                   height={200}
                   className="rounded-lg"
                 />
               )}
               <div className="mt-2 text-center">
-                <span className="text-xs font-bold text-slate-800">
-                  {formatRupiah(generatedQris.amount)}
+                <span className="text-sm font-bold text-[#1E2229] tabular-nums">
+                  {formatRupiah(qrisAmount)}
                 </span>
-                <p className="text-[10px] text-slate-500 font-mono">
-                  {generatedQris.trx_id}
+                <p className="text-[11px] text-[#7A7670] font-mono">
+                  {qrisTrxId}
                 </p>
               </div>
             </div>
@@ -242,19 +261,29 @@ export function QrisGenerator({ onPaymentSuccess }: { onPaymentSuccess?: () => v
             {/* QRIS String Payload Copy */}
             <div className="w-full mt-4 space-y-2">
               <div className="flex items-center justify-between text-xs">
-                <span className="text-slate-500 dark:text-slate-400 font-medium">
-                  String Payload EMVCo:
+                <span className="text-[#7A7670] dark:text-[#9E9A92] font-medium">
+                  Salin Kode Teks (Untuk Dikirim / Integrasi):
                 </span>
                 <button
                   type="button"
                   onClick={handleCopyPayload}
-                  className="text-[#00aa13] dark:text-[#00c817] hover:underline font-medium cursor-pointer"
+                  className="inline-flex items-center gap-1.5 text-[#2B303A] dark:text-[#EAE6DF] hover:underline font-semibold cursor-pointer"
                 >
-                  {copied ? 'Tersalin!' : 'Salin String'}
+                  {copied ? (
+                    <>
+                      <FiCheck className="h-3.5 w-3.5 text-[#4E6E58] dark:text-[#8EB89A]" />
+                      <span>Tersalin!</span>
+                    </>
+                  ) : (
+                    <>
+                      <FiCopy className="h-3.5 w-3.5" />
+                      <span>Salin Kode</span>
+                    </>
+                  )}
                 </button>
               </div>
-              <p className="text-[10px] font-mono break-all bg-slate-100 dark:bg-slate-950 p-2.5 rounded-lg border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 max-h-20 overflow-y-auto">
-                {generatedQris.data}
+              <p className="text-[11px] font-mono break-all bg-[#E8E2D9]/70 dark:bg-[#15181E] p-2.5 rounded-[10px] border border-[#D9D2C7] dark:border-white/10 text-[#1E2229] dark:text-[#F3EFEA] max-h-20 overflow-y-auto">
+                {qrisString}
               </p>
             </div>
           </div>

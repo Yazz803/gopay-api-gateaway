@@ -5,7 +5,7 @@ import { fetchTransactionsData } from '@/lib/gopay-api';
 export const dynamic = 'force-dynamic';
 
 export async function GET(req: NextRequest) {
-  const auth = validateApiKey(req);
+  const auth = await validateApiKey(req);
   if (!auth.valid) return auth.response!;
 
   try {

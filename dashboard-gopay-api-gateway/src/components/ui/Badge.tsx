@@ -17,15 +17,15 @@ export function Badge({
 
   const variants = {
     success:
-      'bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800',
+      'bg-[#4E6E58]/15 text-[#4E6E58] border border-[#4E6E58]/30 dark:bg-[#658E72]/20 dark:text-[#8EB89A] dark:border-[#658E72]/40',
     warning:
-      'bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800',
+      'bg-[#D99B26]/15 text-[#A36A18] border border-[#D99B26]/30 dark:bg-[#D99B26]/20 dark:text-[#F3C878] dark:border-[#D99B26]/40',
     danger:
-      'bg-rose-50 text-rose-700 border border-rose-200 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800',
+      'bg-[#B85D43]/15 text-[#B85D43] border border-[#B85D43]/30 dark:bg-[#D07258]/20 dark:text-[#F0C8BE] dark:border-[#D07258]/40',
     info:
-      'bg-sky-50 text-sky-700 border border-sky-200 dark:bg-sky-950/40 dark:text-sky-300 dark:border-sky-800',
+      'bg-[#383E4A]/15 text-[#2B303A] border border-[#383E4A]/25 dark:bg-[#383E4A]/30 dark:text-[#D1D6E1] dark:border-white/10',
     neutral:
-      'bg-slate-100 text-slate-700 border border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700',
+      'bg-[#E8E2D9] text-[#7A7670] border border-[#D9D2C7] dark:bg-[#272C37] dark:text-[#9B9891] dark:border-white/10',
   };
 
   const sizes = {

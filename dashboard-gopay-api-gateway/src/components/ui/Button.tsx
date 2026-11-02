@@ -4,7 +4,7 @@ import React from 'react';
 import { cn } from '@/lib/utils';
 
 export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger';
+  variant?: 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger' | 'pill';
   size?: 'sm' | 'md' | 'lg';
   isLoading?: boolean;
 }
@@ -19,19 +19,21 @@ export function Button({
   ...props
 }: ButtonProps) {
   const baseStyles =
-    'inline-flex items-center justify-center font-medium rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer';
+    'inline-flex items-center justify-center font-medium rounded-[10px] transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-[#2B303A]/20 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer';
 
   const variants = {
     primary:
-      'bg-[#00aa13] text-white hover:bg-[#008f10] focus:ring-[#00aa13] shadow-sm active:scale-[0.98]',
+      'bg-[#2B303A] text-[#EAE6DF] hover:bg-[#383E4A] hover:-translate-y-0.5 active:translate-y-0 dark:bg-[#EAE6DF] dark:text-[#1E2229] dark:hover:bg-white shadow-[0_2px_6px_-1px_rgba(43,48,58,0.12)]',
+    pill:
+      'rounded-full bg-[#383E4A] text-[#EAE6DF] hover:bg-[#4E5666] hover:-translate-y-0.5 active:translate-y-0 px-3.5 py-1.5 text-xs font-semibold shadow-xs',
     secondary:
-      'bg-slate-100 text-slate-900 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700 focus:ring-slate-400',
+      'bg-[#E8E2D9] text-[#1E2229] hover:bg-[#DED8CE] dark:bg-[#272C37] dark:text-[#F3EFEA] dark:hover:bg-[#333946] active:scale-[0.99]',
     outline:
-      'border border-slate-300 bg-transparent hover:bg-slate-100 text-slate-800 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800 focus:ring-slate-400',
+      'border border-[#D9D2C7] bg-transparent hover:bg-[#E8E2D9] text-[#1E2229] dark:border-white/10 dark:text-[#EAE6DF] dark:hover:bg-[#272C37]',
     ghost:
-      'bg-transparent hover:bg-slate-100 text-slate-700 dark:text-slate-300 dark:hover:bg-slate-800 focus:ring-slate-400',
+      'bg-transparent hover:bg-[#E8E2D9] text-[#7A7670] hover:text-[#1E2229] dark:hover:bg-[#272C37] dark:hover:text-[#EAE6DF]',
     danger:
-      'bg-rose-600 text-white hover:bg-rose-700 focus:ring-rose-500 shadow-sm active:scale-[0.98]',
+      'bg-[#B85D43] text-white hover:bg-[#9D462D] dark:bg-[#D07258] dark:hover:bg-[#B85D43] shadow-xs active:scale-[0.99]',
   };
 
   const sizes = {

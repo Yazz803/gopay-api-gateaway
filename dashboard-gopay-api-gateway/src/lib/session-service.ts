@@ -91,6 +91,25 @@ export function syncSessionOut(): void {
   }
 }
 
+export function buildHeadersFromSession(
+  session: Record<string, unknown>,
+  userAgent?: string | null
+): Record<string, string> {
+  const token = session.access_token ? String(session.access_token) : '';
+  const authHeader = token.startsWith('Bearer ') ? token : `Bearer ${token}`;
+  return {
+    Authorization: authHeader,
+    Cookie: String(session.cookie || ''),
+    'authentication-type': 'merchant',
+    Accept: 'application/json',
+    Origin: 'https://app.gobiz.com',
+    Referer: 'https://app.gobiz.com/',
+    'User-Agent':
+      userAgent ||
+      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+  };
+}
+
 export async function getValidHeaders(userAgent?: string | null): Promise<Record<string, string> | null> {
   syncSessionIn();
   const sm = getSessionManager();

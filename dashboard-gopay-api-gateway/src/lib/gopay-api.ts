@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { gatewayState, logActivity } from './gateway-state';
 import { parseGojekAmount } from './emvco';
-import { getValidHeaders, refreshSession } from './session-service';
+import { getValidHeaders, refreshSession, loadSession } from './session-service';
 
 export const GOJEK_TRANSACTIONS_URL = 'https://api.gojekapi.com/merchant-analytics/v2/merchants/transactions';
 
@@ -10,9 +10,10 @@ export async function checkTokenStatus(userAgent?: string | null) {
   if (!activeHeaders) {
     return {
       success: false,
+      active: false,
       data: {
         token_status: 'invalid',
-        message: 'Sesi belum dikonfigurasi. Jalankan `node login.js` di terminal.',
+        message: 'Sesi belum terhubung. Silakan hubungkan akun GoPay Merchant melalui web app.',
       },
     };
   }
@@ -36,8 +37,15 @@ export async function checkTokenStatus(userAgent?: string | null) {
       timeout: 5000,
     });
 
+    const session = loadSession();
     return {
       success: true,
+      active: true,
+      account: {
+        name: (session?.outlet_name as string) || 'Akun GoPay Toko',
+        merchant_id: (session?.merchant_id as string) || merchantId,
+        phone: (session?.phone_number as string) || undefined,
+      },
       data: {
         token_status: 'valid',
         message: 'Token dan Sesi GoPay Merchant Aktif',
@@ -47,6 +55,7 @@ export async function checkTokenStatus(userAgent?: string | null) {
     const message = err instanceof Error ? err.message : 'Unknown error';
     return {
       success: false,
+      active: false,
       data: {
         token_status: 'invalid',
         message,
@@ -61,11 +70,12 @@ export async function fetchTransactionsData(options: {
   endTimeUnix?: number | string | null;
   pageSize?: number | string | null;
   userAgent?: string | null;
+  customHeaders?: Record<string, string> | null;
 }) {
-  const headers = await getValidHeaders(options.userAgent);
+  const headers = options.customHeaders || (await getValidHeaders(options.userAgent));
 
   if (!headers) {
-    throw new Error('Sesi GoPay belum ada. Jalankan `node login.js` di terminal.');
+    throw new Error('Sesi GoPay belum ada. Silakan hubungkan akun GoPay Merchant melalui web app.');
   }
 
   const doRequest = async (activeHeaders: Record<string, string>) => {
@@ -144,7 +154,7 @@ export async function verifyPayment(
 ) {
   const headers = await getValidHeaders(userAgent);
   if (!headers) {
-    throw new Error('Sesi GoPay belum ada. Jalankan `node login.js` di terminal.');
+    throw new Error('Sesi GoPay belum ada. Silakan hubungkan akun GoPay Merchant melalui web app.');
   }
 
   const doRequest = async (activeHeaders: Record<string, string>) => {

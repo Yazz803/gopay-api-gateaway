@@ -1,6 +1,8 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
+import { FiRefreshCw, FiFileText } from 'react-icons/fi';
+import { RiWallet3Line } from 'react-icons/ri';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
@@ -66,9 +68,9 @@ export function TransactionFeed({
       <CardHeader>
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
-            <CardTitle>Riwayat Transaksi GoPay & QRIS</CardTitle>
+            <CardTitle>Riwayat Pembayaran Masuk</CardTitle>
             <CardDescription>
-              Transaksi settlement real-time langsung dari Gojek Merchant API
+              Catatan pembayaran langsung dari pelanggan via QRIS & GoPay secara real-time
             </CardDescription>
           </div>
 
@@ -78,9 +80,11 @@ export function TransactionFeed({
               size="sm"
               onClick={onRefresh}
               isLoading={isLoading}
-              title="Refresh transaksi"
+              title="Perbarui daftar pembayaran"
+              className="inline-flex items-center"
             >
-              Muat Ulang
+              <FiRefreshCw className={`mr-1.5 h-3.5 w-3.5 ${isLoading ? 'animate-spin' : ''}`} />
+              Perbarui
             </Button>
           </div>
         </div>
@@ -88,19 +92,19 @@ export function TransactionFeed({
         <div className="mt-4 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-2">
           <div className="w-full sm:max-w-xs">
             <Input
-              placeholder="Cari order ID, issuer, atau nominal..."
+              placeholder="Cari ID transaksi, bank/aplikasi, atau nominal..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
 
-          <div className="flex items-center gap-3 text-xs text-slate-500 dark:text-slate-400">
+          <div className="flex items-center gap-3 text-xs text-[#7A7670] dark:text-[#9E9A92]">
             <span>
-              Menampilkan <strong className="text-slate-800 dark:text-slate-200">{filteredTransactions.length}</strong> transaksi
+              Menampilkan <strong className="text-[#1E2229] dark:text-[#F3EFEA] tabular-nums">{filteredTransactions.length}</strong> pembayaran
             </span>
             <span>•</span>
             <span>
-              Total: <strong className="text-[#00aa13] dark:text-[#00c817] font-semibold">{formatRupiah(totalCalculated)}</strong>
+              Total: <strong className="text-[#4E6E58] dark:text-[#8EB89A] font-bold tabular-nums">{formatRupiah(totalCalculated)}</strong>
             </span>
           </div>
         </div>
@@ -109,57 +113,55 @@ export function TransactionFeed({
       <CardContent>
         {filteredTransactions.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12 text-center">
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 text-slate-400 dark:bg-slate-800 dark:text-slate-500 mb-3">
-              <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
+            <div className="flex h-12 w-12 items-center justify-center rounded-[12px] bg-[#E8E2D9] text-[#7A7670] dark:bg-[#272C37] dark:text-[#9E9A92] mb-3">
+              <FiFileText className="h-6 w-6" />
             </div>
-            <p className="text-sm font-medium text-slate-700 dark:text-slate-300">
-              {isLoading ? 'Mengambil data transaksi...' : 'Belum ada transaksi ditemukan'}
+            <p className="text-xs font-semibold text-[#1E2229] dark:text-[#F3EFEA]">
+              {isLoading ? 'Memuat data pembayaran...' : 'Belum ada pembayaran yang tercatat'}
             </p>
-            <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm mt-1">
-              Transaksi yang berhasil dibayar melalui QRIS atau GoPay akan otomatis muncul di sini.
+            <p className="text-xs text-[#7A7670] dark:text-[#9E9A92] max-w-sm mt-1">
+              Setiap kali pelanggan selesai membayar lewat QRIS atau GoPay, pembayaran akan otomatis muncul di sini.
             </p>
           </div>
         ) : (
-          <div className="overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-800">
+          <div className="overflow-x-auto rounded-[10px] border border-[#E8E2D9] dark:border-white/10">
             <table className="w-full text-left text-xs">
-              <thead className="bg-slate-50 dark:bg-slate-800/60 text-slate-600 dark:text-slate-300 font-medium border-b border-slate-200 dark:border-slate-800">
+              <thead className="bg-[#E8E2D9]/70 dark:bg-[#272C37]/80 text-[#1E2229] dark:text-[#F3EFEA] font-semibold border-b border-[#E8E2D9] dark:border-white/10">
                 <tr>
-                  <th className="py-2.5 px-3">Waktu</th>
-                  <th className="py-2.5 px-3">Order ID / Trx ID</th>
-                  <th className="py-2.5 px-3">Issuer / Metode</th>
-                  <th className="py-2.5 px-3">Nominal</th>
-                  <th className="py-2.5 px-3">Status</th>
+                  <th className="py-2.5 px-3.5">Waktu</th>
+                  <th className="py-2.5 px-3.5">ID Pembayaran (Order ID)</th>
+                  <th className="py-2.5 px-3.5">Metode Pembayaran</th>
+                  <th className="py-2.5 px-3.5 text-right">Jumlah Uang</th>
+                  <th className="py-2.5 px-3.5 text-right">Status</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 text-slate-700 dark:text-slate-300">
+              <tbody className="divide-y divide-[#E8E2D9] dark:divide-white/5 text-[#1E2229] dark:text-[#F3EFEA]">
                 {filteredTransactions.map((tx, idx) => (
                   <tr
                     key={tx.transaction_id || tx.order_id || idx}
-                    className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors"
+                    className="hover:bg-[#E8E2D9]/40 dark:hover:bg-[#272C37]/50 transition-colors"
                   >
-                    <td className="py-2.5 px-3 text-slate-500 dark:text-slate-400 whitespace-nowrap">
+                    <td className="py-3 px-3.5 text-[#7A7670] dark:text-[#9E9A92] whitespace-nowrap tabular-nums">
                       {formatDate(tx.time)}
                     </td>
-                    <td className="py-2.5 px-3 font-mono">
-                      <div className="font-semibold text-slate-900 dark:text-slate-100 truncate max-w-[180px]">
+                    <td className="py-3 px-3.5 font-mono">
+                      <div className="font-semibold text-[#1E2229] dark:text-[#F3EFEA] truncate max-w-[200px]">
                         {tx.order_id || '-'}
                       </div>
-                      <div className="text-[10px] text-slate-400 truncate max-w-[180px]">
+                      <div className="text-[11px] text-[#7A7670] dark:text-[#9E9A92] truncate max-w-[200px]">
                         {tx.transaction_id || '-'}
                       </div>
                     </td>
-                    <td className="py-2.5 px-3">
-                      <span className="inline-flex items-center gap-1.5 font-medium text-slate-800 dark:text-slate-200">
-                        <span className="h-2 w-2 rounded-full bg-[#00aa13]" />
+                    <td className="py-3 px-3.5">
+                      <span className="inline-flex items-center gap-1.5 font-medium text-[#1E2229] dark:text-[#F3EFEA]">
+                        <RiWallet3Line className="h-3.5 w-3.5 text-[#4E6E58] dark:text-[#8EB89A]" />
                         {tx.issuer || 'GoPay'}
                       </span>
                     </td>
-                    <td className="py-2.5 px-3 font-semibold text-slate-900 dark:text-slate-100 whitespace-nowrap">
+                    <td className="py-3 px-3.5 font-bold text-right text-[#1E2229] dark:text-[#F3EFEA] whitespace-nowrap tabular-nums">
                       {formatRupiah(tx.amount)}
                     </td>
-                    <td className="py-2.5 px-3">
+                    <td className="py-3 px-3.5 text-right">
                       <Badge
                         variant={
                           tx.status?.toLowerCase() === 'success' ||
@@ -170,7 +172,13 @@ export function TransactionFeed({
                         }
                         size="sm"
                       >
-                        {tx.status?.toUpperCase() || 'SUCCESS'}
+                        {tx.status?.toLowerCase() === 'success' ||
+                        tx.status?.toLowerCase() === 'settlement' ||
+                        tx.status?.toLowerCase() === 'capture'
+                          ? 'Lunas'
+                          : tx.status?.toLowerCase() === 'pending'
+                          ? 'Menunggu'
+                          : tx.status?.toUpperCase() || 'Lunas'}
                       </Badge>
                     </td>
                   </tr>

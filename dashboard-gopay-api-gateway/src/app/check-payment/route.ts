@@ -6,7 +6,7 @@ import { logActivity } from '@/lib/gateway-state';
 export const dynamic = 'force-dynamic';
 
 async function handleCheckPayment(req: NextRequest) {
-  const auth = validateApiKey(req);
+  const auth = await validateApiKey(req);
   if (!auth.valid) return auth.response!;
 
   let amount: string | number | null = null;
