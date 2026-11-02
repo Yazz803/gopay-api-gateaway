@@ -44,12 +44,16 @@ export interface CheckPaymentResponse {
 
 export interface TokenStatusResponse {
   success: boolean;
-  active: boolean;
+  active?: boolean;
   expires_in?: number;
   account?: {
     name?: string;
     phone?: string;
     merchant_id?: string;
+  };
+  data?: {
+    token_status?: string;
+    message?: string;
   };
   message?: string;
 }
@@ -72,7 +76,17 @@ export interface LogsResponse {
 
 export interface TransactionsResponse {
   success: boolean;
-  data: NormalizedTransaction[];
+  total_amount?: string;
+  data?: {
+    transactions?: Array<{
+      amount: number;
+      status: string;
+      time: string;
+      issuer: string;
+      order_id: string;
+      transaction_id: string;
+    }>;
+  } | NormalizedTransaction[];
   total?: number;
   message?: string;
 }
@@ -80,6 +94,7 @@ export interface TransactionsResponse {
 export interface QrStatusResponse {
   success: boolean;
   status: 'PENDING' | 'PAID' | 'EXPIRED' | 'NOT_FOUND';
+  paid?: boolean;
   qris?: QrisItem;
   transaction?: NormalizedTransaction | null;
   message?: string;

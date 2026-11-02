@@ -1,68 +1,177 @@
-import Image from "next/image";
+'use client';
 
-export default function Home() {
+import React, { useState, useEffect, useCallback } from 'react';
+import { Header } from '@/components/layout/Header';
+import {
+  TokenStatusCard,
+  TransactionFeed,
+  QrisGenerator,
+  ActivityLogsTerminal,
+} from '@/features';
+import { GatewayService } from '@/services/gateway.service';
+import type {
+  HealthResponse,
+  TokenStatusResponse,
+  TransactionsResponse,
+  ActivityLogItem,
+} from '@/types';
+
+export default function DashboardPage() {
+  const [activeTab, setActiveTab] = useState<'transactions' | 'qris' | 'logs'>('transactions');
+  const [isHealthy, setIsHealthy] = useState<boolean>(true);
+  const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
+
+  const [healthData, setHealthData] = useState<HealthResponse | null>(null);
+  const [tokenStatus, setTokenStatus] = useState<TokenStatusResponse | null>(null);
+  const [transactionsData, setTransactionsData] = useState<TransactionsResponse | null>(null);
+  const [logs, setLogs] = useState<ActivityLogItem[]>([]);
+
+  const loadData = useCallback(async () => {
+    setIsRefreshing(true);
+    try {
+      const [hRes, tRes, txRes, lRes] = await Promise.allSettled([
+        GatewayService.getHealth(),
+        GatewayService.getTokenStatus(),
+        GatewayService.getTransactions(25),
+        GatewayService.getLogs(),
+      ]);
+
+      if (hRes.status === 'fulfilled') {
+        setHealthData(hRes.value);
+        setIsHealthy(hRes.value.status === 'OK' || hRes.value.status === 'ok');
+      } else {
+        setIsHealthy(false);
+      }
+
+      if (tRes.status === 'fulfilled') {
+        setTokenStatus(tRes.value);
+      }
+
+      if (txRes.status === 'fulfilled') {
+        setTransactionsData(txRes.value);
+      }
+
+      if (lRes.status === 'fulfilled') {
+        setLogs(lRes.value.logs || []);
+      }
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    queueMicrotask(() => {
+      loadData();
+    });
+    const interval = setInterval(loadData, 15000); // 15s auto-refresh
+    return () => clearInterval(interval);
+  }, [loadData]);
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col">
+      <Header
+        isHealthy={isHealthy}
+        onRefreshAll={loadData}
+        isRefreshing={isRefreshing}
+      />
+
+      <main className="flex-1 mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+        {/* Top Overview Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="md:col-span-2">
+            <TokenStatusCard
+              tokenStatus={tokenStatus}
+              isLoading={isRefreshing}
+              onRefresh={loadData}
             />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+          </div>
+
+          <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-xs dark:border-slate-800 dark:bg-slate-900 flex flex-col justify-between">
+            <div className="space-y-1">
+              <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                Gateway Metrics
+              </span>
+              <div className="mt-2 grid grid-cols-2 gap-3 text-xs">
+                <div>
+                  <span className="text-slate-500 dark:text-slate-400">Active QRIS:</span>
+                  <p className="text-base font-bold text-slate-900 dark:text-slate-100">
+                    {healthData?.gateway?.active_qris ?? 0}
+                  </p>
+                </div>
+                <div>
+                  <span className="text-slate-500 dark:text-slate-400">Claimed TRX:</span>
+                  <p className="text-base font-bold text-[#00aa13] dark:text-[#00c817]">
+                    {healthData?.gateway?.claimed_transactions ?? 0}
+                  </p>
+                </div>
+              </div>
+            </div>
+            <div className="pt-3 border-t border-slate-100 dark:border-slate-800/80 text-[11px] text-slate-400 flex items-center justify-between">
+              <span>Uptime: {Math.floor((healthData?.uptime || 0) / 60)} min</span>
+              <span>Next.js App Router</span>
+            </div>
+          </div>
         </div>
+
+        {/* Navigation Tabs */}
+        <div className="flex border-b border-slate-200 dark:border-slate-800 space-x-1 sm:space-x-3 text-sm">
+          <button
+            type="button"
+            onClick={() => setActiveTab('transactions')}
+            className={`py-3 px-4 font-medium transition-colors border-b-2 cursor-pointer ${
+              activeTab === 'transactions'
+                ? 'border-[#00aa13] text-[#00aa13] font-semibold'
+                : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
+            }`}
+          >
+            Riwayat Transaksi
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('qris')}
+            className={`py-3 px-4 font-medium transition-colors border-b-2 cursor-pointer ${
+              activeTab === 'qris'
+                ? 'border-[#00aa13] text-[#00aa13] font-semibold'
+                : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
+            }`}
+          >
+            QRIS Generator
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('logs')}
+            className={`py-3 px-4 font-medium transition-colors border-b-2 cursor-pointer ${
+              activeTab === 'logs'
+                ? 'border-[#00aa13] text-[#00aa13] font-semibold'
+                : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
+            }`}
+          >
+            Console Logs ({logs.length})
+          </button>
+        </div>
+
+        {/* Tab Content Panes */}
+        {activeTab === 'transactions' && (
+          <TransactionFeed
+            transactionsData={transactionsData}
+            isLoading={isRefreshing}
+            onRefresh={loadData}
+          />
+        )}
+
+        {activeTab === 'qris' && (
+          <div className="max-w-2xl mx-auto">
+            <QrisGenerator onPaymentSuccess={loadData} />
+          </div>
+        )}
+
+        {activeTab === 'logs' && (
+          <ActivityLogsTerminal
+            logs={logs}
+            isLoading={isRefreshing}
+            onRefresh={loadData}
+          />
+        )}
       </main>
     </div>
   );
