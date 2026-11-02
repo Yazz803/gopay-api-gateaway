@@ -1,0 +1,4 @@
+.hermes/*
+graphify-out/*
+.env
+.env.prod
