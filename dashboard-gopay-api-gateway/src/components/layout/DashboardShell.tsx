@@ -159,6 +159,9 @@ export function DashboardShell({ children }: DashboardShellProps) {
     if (pathname.startsWith('/qris')) {
       return 'Buat Kode QRIS Pembayaran';
     }
+    if (pathname.startsWith('/docs')) {
+      return 'Dokumentasi API & Integrasi Webhook';
+    }
     if (pathname.startsWith('/logs')) {
       return 'Catatan Aktivitas Sistem';
     }

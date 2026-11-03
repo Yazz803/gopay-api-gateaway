@@ -5,6 +5,8 @@ export const usersTable = pgTable('users', {
   name: text('name').notNull(),
   username: text('username').notNull().unique(),
   apiKey: text('api_key').unique(),
+  webhookUrl: text('webhook_url'),
+  webhookSecret: text('webhook_secret'),
   qrisStatic: text('qris_static'),
   encryptedQrisStatic: text('encrypted_qris_static'),
   emailHash: text('email_hash').notNull().unique(),
@@ -68,9 +70,24 @@ export const activityLogsTable = pgTable('activity_logs', {
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 
+export const webhookDeliveriesTable = pgTable('webhook_deliveries', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id').notNull().references(() => usersTable.id, { onDelete: 'cascade' }),
+  event: text('event').notNull(),
+  url: text('url').notNull(),
+  payloadJson: text('payload_json').notNull(),
+  responseStatus: integer('response_status'),
+  responseBody: text('response_body'),
+  status: text('status').notNull(), // 'success' | 'failed'
+  durationMs: integer('duration_ms'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
 export type UserRecord = typeof usersTable.$inferSelect;
 export type InsertUser = typeof usersTable.$inferInsert;
 export type MerchantSessionRecord = typeof merchantSessionsTable.$inferSelect;
 export type QrisOrderRecord = typeof qrisOrdersTable.$inferSelect;
 export type TransactionRecord = typeof transactionsTable.$inferSelect;
 export type ActivityLogRecord = typeof activityLogsTable.$inferSelect;
+export type WebhookDeliveryRecord = typeof webhookDeliveriesTable.$inferSelect;
+export type InsertWebhookDelivery = typeof webhookDeliveriesTable.$inferInsert;

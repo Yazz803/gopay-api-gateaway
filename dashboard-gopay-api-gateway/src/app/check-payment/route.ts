@@ -9,6 +9,7 @@ import {
   recordTransactionToDb,
 } from '@/lib/merchant-session-db';
 import { buildHeadersFromSession } from '@/lib/session-service';
+import { dispatchPaymentWebhook } from '@/lib/webhook-service';
 
 export const dynamic = 'force-dynamic';
 
@@ -102,6 +103,20 @@ async function handleCheckPayment(req: NextRequest) {
           status: 'success',
           waktuTransaksi: matchedTransaction.transaction_time ? new Date(matchedTransaction.transaction_time) : new Date(),
         }).catch(() => null);
+
+        dispatchPaymentWebhook({
+          userId: targetUserId,
+          qrisId: scopeId || null,
+          trxId: matchedTransaction.order_id || scopeId || `TRX-${Date.now()}`,
+          amount: matchedTransaction.amount,
+          paymentType: matchedTransaction.payment_type,
+          issuer: matchedTransaction.payer_issuer || 'GoPay',
+          transactionId: matchedTransaction.id,
+          transactionTime: matchedTransaction.transaction_time,
+          status: 'PAID',
+        }).catch((webhookErr) => {
+          console.error('[CheckPayment Webhook Error]:', webhookErr);
+        });
       }
 
       logActivity(

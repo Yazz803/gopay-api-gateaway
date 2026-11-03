@@ -44,6 +44,8 @@ export async function initDatabaseSchema(): Promise<boolean> {
     await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS api_key TEXT UNIQUE;`.catch(() => {});
     await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS qris_static TEXT;`.catch(() => {});
     await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS encrypted_qris_static TEXT;`.catch(() => {});
+    await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS webhook_url TEXT;`.catch(() => {});
+    await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS webhook_secret TEXT;`.catch(() => {});
 
     // 3. Table merchant_sessions
     await sql`
@@ -101,6 +103,22 @@ export async function initDatabaseSchema(): Promise<boolean> {
         log_type TEXT NOT NULL,
         encrypted_message TEXT NOT NULL,
         details_json TEXT,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL
+      );
+    `;
+
+    // 7. Table webhook_deliveries
+    await sql`
+      CREATE TABLE IF NOT EXISTS webhook_deliveries (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        event TEXT NOT NULL,
+        url TEXT NOT NULL,
+        payload_json TEXT NOT NULL,
+        response_status INTEGER,
+        response_body TEXT,
+        status TEXT NOT NULL,
+        duration_ms INTEGER,
         created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL
       );
     `;

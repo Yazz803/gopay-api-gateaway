@@ -12,6 +12,7 @@ import { buildHeadersFromSession } from '@/lib/session-service';
 import { getDb, isDatabaseConfigured } from '@/lib/db';
 import * as schema from '@/lib/db/schema';
 import { eq, or } from 'drizzle-orm';
+import { dispatchPaymentWebhook } from '@/lib/webhook-service';
 
 export const dynamic = 'force-dynamic';
 
@@ -149,6 +150,20 @@ export async function GET(
             // ignore
           }
         }
+
+        dispatchPaymentWebhook({
+          userId: qris.userId,
+          qrisId,
+          trxId: qris.trxId,
+          amount: fm.amount,
+          paymentType: fm.payment_type,
+          issuer: fm.payer_issuer || fm.issuer || 'GoPay',
+          transactionId: fm.id,
+          transactionTime: fm.transaction_time,
+          status: 'PAID',
+        }).catch((webhookErr) => {
+          console.error('[FinalMatch Webhook Error]:', webhookErr);
+        });
       }
 
       return jsonResponse({
@@ -224,6 +239,20 @@ export async function GET(
             // ignore
           }
         }
+
+        dispatchPaymentWebhook({
+          userId: qris.userId,
+          qrisId,
+          trxId: qris.trxId,
+          amount: m.amount,
+          paymentType: m.payment_type,
+          issuer: m.payer_issuer || m.issuer || 'GoPay',
+          transactionId: m.id,
+          transactionTime: m.transaction_time,
+          status: 'PAID',
+        }).catch((webhookErr) => {
+          console.error('[Matched Webhook Error]:', webhookErr);
+        });
       }
 
       logActivity(

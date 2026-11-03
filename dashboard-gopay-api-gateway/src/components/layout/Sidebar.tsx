@@ -10,13 +10,14 @@ import {
   RiQrCodeLine,
   RiTerminalBoxLine,
   RiUser3Line,
+  RiBookOpenLine,
 } from 'react-icons/ri';
 import { GopayConnectModal } from '@/components/common/GopayConnectModal';
 import type { TokenStatusResponse } from '@/types';
 
 export interface SidebarProps {
-  activeTab?: 'transactions' | 'qris' | 'logs' | 'profile';
-  onSelectTab?: (tab: 'transactions' | 'qris' | 'logs' | 'profile') => void;
+  activeTab?: 'transactions' | 'qris' | 'logs' | 'profile' | 'docs';
+  onSelectTab?: (tab: 'transactions' | 'qris' | 'logs' | 'profile' | 'docs') => void;
   isHealthy: boolean;
   tokenStatus: TokenStatusResponse | null;
   logsCount: number;
@@ -52,6 +53,12 @@ export function Sidebar({
       href: '/qris',
       label: 'Buat Kode QRIS',
       icon: <RiQrCodeLine className="h-4 w-4 shrink-0 text-[#9B9FA7]" />,
+    },
+    {
+      id: 'docs' as const,
+      href: '/docs',
+      label: 'Dokumentasi API',
+      icon: <RiBookOpenLine className="h-4 w-4 shrink-0 text-[#9B9FA7]" />,
     },
     {
       id: 'logs' as const,
